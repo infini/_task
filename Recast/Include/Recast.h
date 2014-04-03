@@ -30,6 +30,7 @@
 //#define	INTEGRATION_BUILD
 //#define	LOAD_ONLY_OBJECT
 //#define	LOAD_ONLY_TERRAIN
+//#define	MODIFY_COORDINATES
 //////////////////////////////////////////////////////////////////////////
 
 /// The value of PI used by Recast.

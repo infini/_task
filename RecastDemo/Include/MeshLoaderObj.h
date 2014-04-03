@@ -20,6 +20,7 @@
 #define MESHLOADER_OBJ
 
 #include <Recast.h>
+#include <vector>
 
 class rcMeshLoaderObj
 {
@@ -29,7 +30,10 @@ public:
 	
 	bool load(const char* fileName);
 
+#ifdef MODIFY_COORDINATES
+#else // MODIFY_COORDINATES
 	inline const float* getVerts() const { return m_verts; }
+#endif // MODIFY_COORDINATES
 	inline const float* getNormals() const { return m_normals; }
 	inline const int* getTris() const { return m_tris; }
 	inline int getVertCount() const { return m_vertCount; }
@@ -54,7 +58,10 @@ private:
 	
 	char m_filename[260];
 	float m_scale;	
+#ifdef MODIFY_COORDINATES
+#else // MODIFY_COORDINATES
 	float* m_verts;
+#endif // MODIFY_COORDINATES
 	int* m_tris;
 	float* m_normals;
 	int m_vertCount;

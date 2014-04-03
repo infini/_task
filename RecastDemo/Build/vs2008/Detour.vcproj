@@ -6,6 +6,7 @@
 	ProjectGUID="{5173528F-2AAE-DF4C-993D-4FDAB91F4F09}"
 	RootNamespace="Detour"
 	Keyword="Win32Proj"
+	TargetFrameworkVersion="0"
 	>
 	<Platforms>
 		<Platform
@@ -40,7 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\..\..\Detour\Include"
+				AdditionalIncludeDirectories="..\..\..\Detour\Include;..\..\..\Common"
 				PreprocessorDefinitions="DEBUG;WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS"
 				MinimalRebuild="true"
 				ExceptionHandling="0"
@@ -50,8 +51,8 @@
 				FloatingPointModel="2"
 				RuntimeTypeInfo="false"
 				UsePrecompiledHeader="0"
-				WarningLevel="4"
 				ProgramDataBaseFileName="$(OutDir)\Detour.pdb"
+				WarningLevel="4"
 				DebugInformationFormat="4"
 			/>
 			<Tool
@@ -73,9 +74,6 @@
 				Name="VCALinkTool"
 			/>
 			<Tool
-				Name="VCManifestTool"
-			/>
-			<Tool
 				Name="VCXDCMakeTool"
 			/>
 			<Tool
@@ -83,12 +81,6 @@
 			/>
 			<Tool
 				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -119,17 +111,17 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="3"
-				AdditionalIncludeDirectories="..\..\..\Detour\Include"
+				AdditionalIncludeDirectories="..\..\..\Detour\Include;..\..\..\Common"
 				PreprocessorDefinitions="NDEBUG;WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS"
-				ExceptionHandling="0"
 				StringPooling="true"
+				ExceptionHandling="0"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				FloatingPointModel="2"
 				RuntimeTypeInfo="false"
 				UsePrecompiledHeader="0"
-				WarningLevel="4"
 				ProgramDataBaseFileName="$(OutDir)\Detour.pdb"
+				WarningLevel="4"
 				DebugInformationFormat="3"
 			/>
 			<Tool
@@ -151,9 +143,6 @@
 				Name="VCALinkTool"
 			/>
 			<Tool
-				Name="VCManifestTool"
-			/>
-			<Tool
 				Name="VCXDCMakeTool"
 			/>
 			<Tool
@@ -161,12 +150,6 @@
 			/>
 			<Tool
 				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
-				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -178,11 +161,9 @@
 	<Files>
 		<Filter
 			Name="Detour"
-			Filter=""
 			>
 			<Filter
 				Name="Include"
-				Filter=""
 				>
 				<File
 					RelativePath="..\..\..\Detour\Include\DetourAlloc.h"
@@ -223,7 +204,6 @@
 			</Filter>
 			<Filter
 				Name="Source"
-				Filter=""
 				>
 				<File
 					RelativePath="..\..\..\Detour\Source\DetourAlloc.cpp"
