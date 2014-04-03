@@ -750,6 +750,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 					}
 						
 					rcContour* cont = &cset.conts[cset.nconts++];
+					cont->area = 0;
 					
 					cont->nverts = simplified.size()/4;
 					cont->verts = (int*)rcAlloc(sizeof(int)*cont->nverts*4, RC_ALLOC_PERM);
@@ -801,7 +802,11 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 					cont->cz /= cont->nverts;*/
 					
 					cont->reg = reg;
+#ifdef MODIFY_VOXEL_FLAG
 					cont->area = area;
+#else // MODIFY_VOXEL_FLAG
+					cont->area = area;
+#endif // MODIFY_VOXEL_FLAG
 				}
 			}
 		}

@@ -190,7 +190,7 @@ Sample_TileMesh::Sample_TileMesh() :
 	m_drawMode(DRAWMODE_NAVMESH),
 	m_maxTiles(0),
 	m_maxPolysPerTile(0),
-	m_tileSize(128),
+	m_tileSize(64),
 	m_tileCol(duRGBA(0,0,0,32)),
 	m_tileBuildTime(0),
 	m_tileMemUsage(0),
@@ -777,6 +777,26 @@ bool Sample_TileMesh::handleBuild()
 		m_cellSize = 1.0f;
 		m_tileSize = ceilf( (bmax[0] - bmin[0]) / m_cellSize );
 	}
+
+	int gw = 0, gh = 0;
+	rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
+	const int ts = (int)m_tileSize;
+	const int tw = (gw + ts-1) / ts;
+	const int th = (gh + ts-1) / ts;
+
+#ifdef DT_POLYREF64
+	int tileBits = (int)ilog2(nextPow2(tw*th));
+	if (tileBits > DT_TILE_BITS) tileBits = DT_TILE_BITS;
+	int polyBits = (DT_TILE_BITS + DT_POLY_BITS) - tileBits;
+	m_maxTiles = 1 << tileBits;
+	m_maxPolysPerTile = 1 << polyBits;
+#else // DT_POLYREF64
+	int tileBits = rcMin((int)ilog2(nextPow2(tw*th)), 14);
+	if (tileBits > 14) tileBits = 14;
+	int polyBits = 22 - tileBits;
+	m_maxTiles = 1 << tileBits;
+	m_maxPolysPerTile = 1 << polyBits;
+#endif // DT_POLYREF64
 #endif // VARIABLE_TILE_SIZE
 
 	dtNavMeshParams params;
@@ -928,8 +948,12 @@ void Sample_TileMesh::buildAllTiles()
 				m_navMesh->removeTile(m_navMesh->getTileRefAt(x,y,0),0,0);
 				// Let the navmesh own the data.
 				dtStatus status = m_navMesh->addTile(data,dataSize,DT_TILE_FREE_DATA,0,0);
-				if (dtStatusFailed(status))
+				if (dtStatusFailed(status)) {
 					dtFree(data);
+				}
+			}
+			else {
+				//_asm int 3;
 			}
 		}
 	}
@@ -1042,8 +1066,9 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 	tbmax[1] = m_cfg.bmax[2];
 	int cid[512];// TODO: Make grow when returning too many items.
 	const int ncid = rcGetChunksOverlappingRect(chunkyMesh, tbmin, tbmax, cid, 512);
-	if (!ncid)
+	if (!ncid) {
 		return 0;
+	}
 	
 	m_tileTriCount = 0;
 	
@@ -1173,7 +1198,7 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 	}
 
 #ifdef MODIFY_OFF_MESH_CONNECTION
-	rcGenerateOffMeshConnection( *m_pmesh, *m_geom );
+	rcGenerateJumpableMeshConnection( *m_pmesh, m_agentHeight, m_agentMaxClimb, *m_geom );
 #endif // MODIFY_OFF_MESH_CONNECTION
 
 	// Build detail mesh.
@@ -1251,7 +1276,11 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 		params.cs = m_cfg.cs;
 		params.ch = m_cfg.ch;
 		params.buildBvTree = true;
-		
+#ifdef MODIFY_OFF_MESH_CONNECTION
+		params.jumpMeshConnection	= m_geom->tableJumpMeshConnection.empty() ? 0 : &m_geom->tableJumpMeshConnection.at(0);
+		params.jumpMeshConnectionCount = m_geom->jumpMeshConnectionCount;
+#endif // MODIFY_OFF_MESH_CONNECTION
+
 		if (!dtCreateNavMeshData(&params, &navData, &navDataSize))
 		{
 			m_ctx->log(RC_LOG_ERROR, "Could not build Detour navmesh.");

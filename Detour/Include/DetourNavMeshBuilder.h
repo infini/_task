@@ -20,6 +20,7 @@
 #define DETOURNAVMESHBUILDER_H
 
 #include "DetourAlloc.h"
+#include "DetourNavMesh.h"
 
 /// Represents the source data used to build an navigation mesh tile.
 /// @ingroup detour
@@ -102,6 +103,11 @@ struct dtNavMeshCreateParams
 	bool buildBvTree;
 
 	/// @}
+
+// #ifdef MODIFY_OFF_MESH_CONNECTION
+	const dtJumpMeshConnection*	jumpMeshConnection;
+	int	jumpMeshConnectionCount;
+// #endif // MODIFY_OFF_MESH_CONNECTION
 };
 
 /// Builds navigation mesh tile data from the provided tile creation data.

@@ -177,7 +177,7 @@ public:
 	void handleCommonSettings();
 
 #ifdef MODIFY_OFF_MESH_CONNECTION
-	void	rcGenerateOffMeshConnection( const rcPolyMesh& mesh, class InputGeom& geom );
+	void	rcGenerateJumpableMeshConnection( const rcPolyMesh& mesh, const float walkableHeight, const float walkableClimb, class InputGeom& geom );
 #endif // MODIFY_OFF_MESH_CONNECTION
 };
 

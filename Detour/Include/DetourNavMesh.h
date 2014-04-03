@@ -26,6 +26,7 @@
 // Generally not needed, useful for very large worlds.
 // Note: tiles build using 32bit refs are not compatible with 64bit refs!
 //#define DT_POLYREF64 1
+#define MODIFY_OFF_MESH_CONNECTION
 
 #ifdef DT_POLYREF64
 // TODO: figure out a multiplatform version of uint64_t
@@ -120,10 +121,17 @@ enum dtStraightPathOptions
 /// Flags representing the type of a navigation mesh polygon.
 enum dtPolyTypes
 {
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	DT_POLYTYPE_GROUND = 0x01
+	//, DT_POLYTYPE_OFFMESH_CONNECTION = 0x02
+	, DT_POLYTYPE_JUMPABLE_MESH_CONNECTION = 0x02
+	, DT_POLYTYPE_OFFMESH_CONNECTION = 0x04
+#else // MODIFY_OFF_MESH_CONNECTION
 	/// The polygon is a standard convex polygon that is part of the surface of the mesh.
 	DT_POLYTYPE_GROUND = 0,
 	/// The polygon is an off-mesh connection consisting of two vertices.
 	DT_POLYTYPE_OFFMESH_CONNECTION = 1,
+#endif // MODIFY_OFF_MESH_CONNECTION
 };
 
 
@@ -150,6 +158,10 @@ struct dtPoly
 	/// The bit packed area id and polygon type.
 	/// @note Use the structure's set and get methods to acess this value.
 	unsigned char areaAndtype;
+
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	unsigned int jumpMeshFirstLink;
+#endif // MODIFY_OFF_MESH_CONNECTION
 
 	/// Sets the user defined area id. [Limit: < #DT_MAX_AREAS]
 	inline void setArea(unsigned char a) { areaAndtype = (areaAndtype & 0xc0) | (a & 0x3f); }
@@ -198,6 +210,7 @@ struct dtBVNode
 
 /// Defines an navigation mesh off-mesh connection within a dtMeshTile object.
 /// An off-mesh connection is a user defined traversable connection made up to two vertices.
+#ifndef MODIFY_OFF_MESH_CONNECTION
 struct dtOffMeshConnection
 {
 	/// The endpoints of the connection. [(ax, ay, az, bx, by, bz)]
@@ -220,6 +233,7 @@ struct dtOffMeshConnection
 	/// The id of the offmesh connection. (User assigned when the navigation mesh is built.)
 	unsigned int userId;
 };
+#endif // !MODIFY_OFF_MESH_CONNECTION
 
 /// Provides high level information related to a dtMeshTile object.
 /// @ingroup detour
@@ -241,8 +255,10 @@ struct dtMeshHeader
 	
 	int detailTriCount;			///< The number of triangles in the detail mesh.
 	int bvNodeCount;			///< The number of bounding volume nodes. (Zero if bounding volumes are disabled.)
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	int offMeshConCount;		///< The number of off-mesh connections.
 	int offMeshBase;			///< The index of the first polygon which is an off-mesh connection.
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	float walkableHeight;		///< The height of the agents using the tile.
 	float walkableRadius;		///< The radius of the agents using the tile.
 	float walkableClimb;		///< The maximum climb height of the agents using the tile.
@@ -251,7 +267,26 @@ struct dtMeshHeader
 	
 	/// The bounding volume quantization factor. 
 	float bvQuantFactor;
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	int jumpMeshConnectionCount;
+#endif // MODIFY_OFF_MESH_CONNECTION
 };
+
+#ifdef MODIFY_OFF_MESH_CONNECTION
+struct dtJumpMeshConnection
+{
+// 	dtPolyRef startRef;
+// 	dtPolyRef endRef;
+	float startPosition[3];
+	float endPosition[3];
+};
+
+struct dtJumpMeshLink
+{
+	dtPolyRef ref;
+	unsigned int next;
+};
+#endif // MODIFY_OFF_MESH_CONNECTION
 
 /// Defines a navigation mesh tile.
 /// @ingroup detour
@@ -276,12 +311,19 @@ struct dtMeshTile
 	/// (Will be null if bounding volumes are disabled.)
 	dtBVNode* bvTree;
 
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	dtOffMeshConnection* offMeshCons;		///< The tile off-mesh connections. [Size: dtMeshHeader::offMeshConCount]
+#endif // !MODIFY_OFF_MESH_CONNECTION
 		
 	unsigned char* data;					///< The tile data. (Not directly accessed under normal situations.)
 	int dataSize;							///< Size of the tile data.
 	int flags;								///< Tile flags. (See: #dtTileFlags)
 	dtMeshTile* next;						///< The next free tile, or the next tile in the spatial grid.
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	dtJumpMeshConnection* jumpMeshConnection;
+	unsigned int jumpMeshLinkFreeList;	
+	dtJumpMeshLink*	jumpMeshLink;
+#endif // MODIFY_OFF_MESH_CONNECTION
 };
 
 /// Configuration parameters used to define multi-tile navigation meshes.
@@ -296,6 +338,18 @@ struct dtNavMeshParams
 	int maxTiles;					///< The maximum number of tiles the navigation mesh can contain.
 	int maxPolys;					///< The maximum number of polygons each tile can contain.
 };
+
+#ifdef MODIFY_OFF_MESH_CONNECTION
+inline bool	dtIsGroundTypeMesh( const unsigned char type )
+{
+	return (type & DT_POLYTYPE_GROUND) == DT_POLYTYPE_GROUND;
+}
+
+inline bool	dtIsJumpableMeshType( const unsigned char type )
+{
+	return (type & DT_POLYTYPE_JUMPABLE_MESH_CONNECTION) == DT_POLYTYPE_JUMPABLE_MESH_CONNECTION;
+}
+#endif // MODIFY_OFF_MESH_CONNECTION
 
 /// A navigation mesh based on tiles of convex polygons.
 /// @ingroup detour
@@ -428,7 +482,9 @@ public:
 	/// Gets the specified off-mesh connection.
 	///  @param[in]	ref		The polygon reference of the off-mesh connection.
 	/// @return The specified off-mesh connection, or null if the polygon reference is not valid.
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	const dtOffMeshConnection* getOffMeshConnectionByRef(dtPolyRef ref) const;
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	
 	/// @}
 
@@ -574,6 +630,7 @@ public:
 	// MIRCHANG
 	const dtMeshTile*	getTilesAt( const int x, const int y ) const;
 	const float*	getOrigin() const	{	return m_orig;	}
+	bool	isConnectedPoly( const dtPolyRef startRef, const dtPolyRef endRef ) const;
 	// MIRCHANG
 	//////////////////////////////////////////////////////////////////////////
 
@@ -600,16 +657,20 @@ private:
 	/// Builds internal polygons links for a tile.
 	void connectIntLinks(dtMeshTile* tile);
 	/// Builds internal polygons links for a tile.
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	void baseOffMeshLinks(dtMeshTile* tile);
+#endif // !MODIFY_OFF_MESH_CONNECTION
 
 	/// Builds external polygon links for a tile.
 	void connectExtLinks(dtMeshTile* tile, dtMeshTile* target, int side);
 	/// Builds external polygon links for a tile.
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	void connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int side);
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	
 	/// Removes external links at specified side.
 	void unconnectExtLinks(dtMeshTile* tile, dtMeshTile* target);
-	
+
 
 	// TODO: These methods are duplicates from dtNavMeshQuery, but are needed for off-mesh connection finding.
 	
@@ -621,6 +682,11 @@ private:
 									const float* extents, float* nearestPt) const;
 	/// Returns closest point on polygon.
 	void closestPointOnPoly(dtPolyRef ref, const float* pos, float* closest, bool* posOverPoly) const;
+
+// #ifdef MODIFY_OFF_MESH_CONNECTION
+	void	connectJumpableMeshLinks( dtMeshTile* tile, const int jumpMeshConnectionCount );
+// #endif // MODIFY_OFF_MESH_CONNECTION
+
 	
 	dtNavMeshParams m_params;			///< Current initialization params. TODO: do not store this info twice.
 	float m_orig[3];					///< Origin of the tile (0,0)

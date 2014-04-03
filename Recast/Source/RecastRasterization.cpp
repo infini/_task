@@ -96,20 +96,7 @@ static void addSpan(rcHeightfield& hf, const int x, const int y,
 
 	// Empty cell, add the first span.
 	if( hf.spans[idx] == NULL ) {
-#ifdef MODIFY_VOXEL_FLAG
-		if( rcIsTerrainArea( s->area ) ) {
-			hf.spans[idx] = s;
-		}
-		else {
-			rcSpan* terrainSpan = allocSpan( hf );
-			terrainSpan->smin = terrainSpan->smax = 0;
-			terrainSpan->area = RC_TERRAIN_WALKABLE_AREA;
-			terrainSpan->next = s;
-			hf.spans[idx] = terrainSpan;
-		}
-#else // MODIFY_VOXEL_FLAG
 		hf.spans[idx] = s;
-#endif // MODIFY_VOXEL_FLAG
 		return;
 	}
 	rcSpan* prev = 0;
@@ -117,56 +104,6 @@ static void addSpan(rcHeightfield& hf, const int x, const int y,
 
 	// Insert and merge spans.
 	do {
-#ifdef MODIFY_VOXEL_FLAG
-		// similar area
-		if( rcIsSimilarTypeArea(s->area, cur->area) ) {
-			if( s->smax < cur->smin ) {
-				break;
-			}
-			else if( cur->smax < s->smin ) {
-				prev = cur;
-				cur = cur->next;
-			}
-			else {
-				s->smin = rcMin( s->smin, cur->smin );
-				s->smax = rcMax( s->smax, cur->smax );
-				s->area = rcMin( s->area, cur->area );
-// 				if( rcAbs(static_cast<int>(s->smax) - static_cast<int>(cur->smax)) <= flagMergeThr ) {
-// 					s->area = rcMax( s->area, cur->area );
-// 				}
-// 				else {
-// 					s->area = rcMin( s->area, cur->area );
-// 				}
-
-				rcSpan* next = cur->next;
-				freeSpan( hf, cur );
-				if( prev ) {
-					prev->next = next;
-				}
-				else {
-					hf.spans[idx] = next;
-				}
-				cur = next;
-			}
-		}
-		// different type
-		else {
-			if( rcIsTerrainArea( s->area ) ) {
-				if( cur->smin == 0 && cur->smax == 0 ) {
-					cur->smin = s->smin;
-					cur->smax = s->smax;
-					cur->area = s->area;
-					freeSpan( hf, s );
-					return;
-				}
-				break;
-			}
-			else {
-				prev = cur;
-				cur = cur->next;
-			}
-		}
-#else // MODIFY_VOXEL_FLAG
 		if (cur->smin > s->smax)
 		{
 			// Current span is further than the new span, break.
@@ -187,8 +124,23 @@ static void addSpan(rcHeightfield& hf, const int x, const int y,
 				s->smax = cur->smax;
 
 			// Merge flags.
-			if (rcAbs((int)s->smax - (int)cur->smax) <= flagMergeThr)
+			if (rcAbs((int)s->smax - (int)cur->smax) <= flagMergeThr) {
+#ifdef MODIFY_VOXEL_FLAG
+				if( rcIsSimilarTypeArea( s->area, cur->area ) ) {
+					s->area = rcMax(s->area, cur->area);
+				}
+				else {
+					if( rcIsWalkableArea( s->area ) || rcIsWalkableArea( cur->area ) ) {
+						s->area = RC_OBJECT_AREA | RC_WALKABLE_AREA;
+					}
+					else {
+						s->area = RC_OBJECT_AREA | RC_UNWALKABLE_AREA;
+					}
+				}
+#else // MODIFY_VOXEL_FLAG
 				s->area = rcMax(s->area, cur->area);
+#endif // MODIFY_VOXEL_FLAG
+			}
 
 			// Remove current span.
 			rcSpan* next = cur->next;
@@ -199,7 +151,6 @@ static void addSpan(rcHeightfield& hf, const int x, const int y,
 				hf.spans[idx] = next;
 			cur = next;
 		}
-#endif // MODIFY_VOXEL_FLAG
 	} while( cur != NULL );
 
 	// Insert new span.

@@ -1133,7 +1133,11 @@ bool rcBuildPolyMesh(rcContext* ctx, rcContourSet& cset, const int nvp, rcPolyMe
 			for (int k = 0; k < nvp; ++k)
 				p[k] = q[k];
 			mesh.regs[mesh.npolys] = cont.reg;
+#ifdef MODIFY_VOXEL_FLAG
 			mesh.areas[mesh.npolys] = cont.area;
+#else // MODIFY_VOXEL_FLAG
+			mesh.areas[mesh.npolys] = cont.area;
+#endif // MODIFY_VOXEL_FLAG
 			mesh.npolys++;
 			if (mesh.npolys > maxTris)
 			{
@@ -1212,6 +1216,12 @@ bool rcBuildPolyMesh(rcContext* ctx, rcContourSet& cset, const int nvp, rcPolyMe
 		return false;
 	}
 	memset(mesh.flags, 0, sizeof(unsigned short) * mesh.npolys);
+
+#ifdef MODIFY_VOXEL_FLAG
+	for( int nth = 0; nth < mesh.npolys; ++nth ) {
+		mesh.flags[nth] = rcGetMeshFlag( mesh.areas[nth] );
+	}
+#endif // MODIFY_VOXEL_FLAG
 	
 	if (mesh.nverts > 0xffff)
 	{

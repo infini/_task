@@ -328,6 +328,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	
 	// Classify off-mesh connection points. We store only the connections
 	// whose start point is inside the tile.
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	unsigned char* offMeshConClass = 0;
 	int storedOffMeshConCount = 0;
 	int offMeshConLinkCount = 0;
@@ -393,10 +394,16 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 				storedOffMeshConCount++;
 		}
 	}
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	
 	// Off-mesh connectionss are stored as polygons, adjust values.
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	const int totPolyCount = params->polyCount;
+	const int totVertCount = params->vertCount;
+#else // MODIFY_OFF_MESH_CONNECTION
 	const int totPolyCount = params->polyCount + storedOffMeshConCount;
 	const int totVertCount = params->vertCount + storedOffMeshConCount*2;
+#endif // MODIFY_OFF_MESH_CONNECTION
 	
 	// Find portal edges which are at tile borders.
 	int edgeCount = 0;
@@ -418,7 +425,11 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 		}
 	}
 
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	const int maxLinkCount = edgeCount + portalCount*2;
+#else // MODIFY_OFF_MESH_CONNECTION
 	const int maxLinkCount = edgeCount + portalCount*2 + offMeshConLinkCount*2;
+#endif // MODIFY_OFF_MESH_CONNECTION
 	
 	// Find unique detail vertices.
 	int uniqueDetailVertCount = 0;
@@ -468,16 +479,30 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	const int detailVertsSize = dtAlign4(sizeof(float)*3*uniqueDetailVertCount);
 	const int detailTrisSize = dtAlign4(sizeof(unsigned char)*4*detailTriCount);
 	const int bvTreeSize = params->buildBvTree ? dtAlign4(sizeof(dtBVNode)*params->polyCount*2) : 0;
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	const int offMeshConsSize = dtAlign4(sizeof(dtOffMeshConnection)*storedOffMeshConCount);
+#endif // !MODIFY_OFF_MESH_CONNECTION
+#ifdef MODIFY_OFF_MESH_CONNECTION
+ 	const int jumpMeshConnectionSize = dtAlign4(sizeof(dtJumpMeshConnection)*params->jumpMeshConnectionCount);
+	const int jumpMeshLinkSize = dtAlign4(sizeof(dtJumpMeshLink)*params->jumpMeshConnectionCount);
+#endif // MODIFY_OFF_MESH_CONNECTION
 	
 	const int dataSize = headerSize + vertsSize + polysSize + linksSize +
 						 detailMeshesSize + detailVertsSize + detailTrisSize +
-						 bvTreeSize + offMeshConsSize;
+						 bvTreeSize
+#ifndef MODIFY_OFF_MESH_CONNECTION
+						 + offMeshConsSize
+#endif // !MODIFY_OFF_MESH_CONNECTION
+#ifdef MODIFY_OFF_MESH_CONNECTION
+						 + jumpMeshConnectionSize + jumpMeshLinkSize;
+#endif // MODIFY_OFF_MESH_CONNECTION
 						 
 	unsigned char* data = (unsigned char*)dtAlloc(sizeof(unsigned char)*dataSize, DT_ALLOC_PERM);
 	if (!data)
 	{
+#ifndef MODIFY_OFF_MESH_CONNECTION
 		dtFree(offMeshConClass);
+#endif // !MODIFY_OFF_MESH_CONNECTION
 		return false;
 	}
 	memset(data, 0, dataSize);
@@ -491,7 +516,13 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	float* navDVerts = (float*)d; d += detailVertsSize;
 	unsigned char* navDTris = (unsigned char*)d; d += detailTrisSize;
 	dtBVNode* navBvtree = (dtBVNode*)d; d += bvTreeSize;
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	dtOffMeshConnection* offMeshCons = (dtOffMeshConnection*)d; d += offMeshConsSize;
+#endif // !MODIFY_OFF_MESH_CONNECTION
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	dtJumpMeshConnection* jumpMeshConnection = (dtJumpMeshConnection*)d; d += jumpMeshConnectionSize;
+	d += jumpMeshLinkSize;
+#endif // MODIFY_OFF_MESH_CONNECTION
 	
 	
 	// Store header
@@ -510,15 +541,24 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	header->detailVertCount = uniqueDetailVertCount;
 	header->detailTriCount = detailTriCount;
 	header->bvQuantFactor = 1.0f / params->cs;
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	header->offMeshBase = params->polyCount;
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	header->walkableHeight = params->walkableHeight;
 	header->walkableRadius = params->walkableRadius;
 	header->walkableClimb = params->walkableClimb;
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	header->offMeshConCount = storedOffMeshConCount;
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	header->bvNodeCount = params->buildBvTree ? params->polyCount*2 : 0;
-	
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	header->jumpMeshConnectionCount = params->jumpMeshConnectionCount;
+#endif // MODIFY_OFF_MESH_CONNECTION
+
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	const int offMeshVertsBase = params->vertCount;
 	const int offMeshPolyBase = params->polyCount;
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	
 	// Store vertices
 	// Mesh vertices
@@ -531,6 +571,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 		v[2] = params->bmin[2] + iv[2] * params->cs;
 	}
 	// Off-mesh link vertices.
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	int n = 0;
 	for (int i = 0; i < params->offMeshConCount; ++i)
 	{
@@ -544,6 +585,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 			n++;
 		}
 	}
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	
 	// Store polygons
 	// Mesh polys
@@ -585,6 +627,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 		src += nvp*2;
 	}
 	// Off-mesh connection vertices.
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	n = 0;
 	for (int i = 0; i < params->offMeshConCount; ++i)
 	{
@@ -601,6 +644,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 			n++;
 		}
 	}
+#endif // !MODIFY_OFF_MESH_CONNECTION
 
 	// Store detail meshes and vertices.
 	// The nav polygon vertices are stored as the first vertices on each mesh.
@@ -669,6 +713,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	}
 	
 	// Store Off-Mesh connections.
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	n = 0;
 	for (int i = 0; i < params->offMeshConCount; ++i)
 	{
@@ -689,8 +734,18 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 			n++;
 		}
 	}
-		
+#endif // !MODIFY_OFF_MESH_CONNECTION
+
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	for( int nth = 0; nth < params->jumpMeshConnectionCount; ++nth ) {
+		dtVcopy( jumpMeshConnection[nth].startPosition, params->jumpMeshConnection[nth].startPosition );
+		dtVcopy( jumpMeshConnection[nth].endPosition, params->jumpMeshConnection[nth].endPosition );
+	}
+#endif // MODIFY_OFF_MESH_CONNECTION
+
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	dtFree(offMeshConClass);
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	
 	*outData = data;
 	*outDataSize = dataSize;
@@ -726,8 +781,10 @@ bool dtNavMeshHeaderSwapEndian(unsigned char* data, const int /*dataSize*/)
 	dtSwapEndian(&header->detailVertCount);
 	dtSwapEndian(&header->detailTriCount);
 	dtSwapEndian(&header->bvNodeCount);
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	dtSwapEndian(&header->offMeshConCount);
 	dtSwapEndian(&header->offMeshBase);
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	dtSwapEndian(&header->walkableHeight);
 	dtSwapEndian(&header->walkableRadius);
 	dtSwapEndian(&header->walkableClimb);
@@ -738,6 +795,7 @@ bool dtNavMeshHeaderSwapEndian(unsigned char* data, const int /*dataSize*/)
 	dtSwapEndian(&header->bmax[1]);
 	dtSwapEndian(&header->bmax[2]);
 	dtSwapEndian(&header->bvQuantFactor);
+	dtSwapEndian(&header->jumpMeshConnectionCount);
 
 	// Freelist index and pointers are updated when tile is added, no need to swap.
 
@@ -768,7 +826,13 @@ bool dtNavMeshDataSwapEndian(unsigned char* data, const int /*dataSize*/)
 	const int detailVertsSize = dtAlign4(sizeof(float)*3*header->detailVertCount);
 	const int detailTrisSize = dtAlign4(sizeof(unsigned char)*4*header->detailTriCount);
 	const int bvtreeSize = dtAlign4(sizeof(dtBVNode)*header->bvNodeCount);
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	const int offMeshLinksSize = dtAlign4(sizeof(dtOffMeshConnection)*header->offMeshConCount);
+#endif // !MODIFY_OFF_MESH_CONNECTION
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	const int jumpMeshConnectionSize = dtAlign4(sizeof(dtJumpMeshConnection)*header->jumpMeshConnectionCount);
+	const int jumpMeshLinkSize = dtAlign4(sizeof(dtJumpMeshLink)*header->jumpMeshConnectionCount);
+#endif // MODIFY_OFF_MESH_CONNECTION
 	
 	unsigned char* d = data + headerSize;
 	float* verts = (float*)d; d += vertsSize;
@@ -778,7 +842,13 @@ bool dtNavMeshDataSwapEndian(unsigned char* data, const int /*dataSize*/)
 	float* detailVerts = (float*)d; d += detailVertsSize;
 	/*unsigned char* detailTris = (unsigned char*)d;*/ d += detailTrisSize;
 	dtBVNode* bvTree = (dtBVNode*)d; d += bvtreeSize;
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	dtOffMeshConnection* offMeshCons = (dtOffMeshConnection*)d; d += offMeshLinksSize;
+#endif // !MODIFY_OFF_MESH_CONNECTION
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	dtJumpMeshConnection* jumpMeshConnection = (dtJumpMeshConnection*)d; d += jumpMeshConnectionSize;
+	d += jumpMeshLinkSize;
+#endif // MODIFY_OFF_MESH_CONNECTION
 	
 	// Vertices
 	for (int i = 0; i < header->vertCount*3; ++i)
@@ -828,6 +898,7 @@ bool dtNavMeshDataSwapEndian(unsigned char* data, const int /*dataSize*/)
 	}
 
 	// Off-mesh Connections.
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	for (int i = 0; i < header->offMeshConCount; ++i)
 	{
 		dtOffMeshConnection* con = &offMeshCons[i];
@@ -836,6 +907,19 @@ bool dtNavMeshDataSwapEndian(unsigned char* data, const int /*dataSize*/)
 		dtSwapEndian(&con->rad);
 		dtSwapEndian(&con->poly);
 	}
+#endif // !MODIFY_OFF_MESH_CONNECTION
+
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	for( int nth = 0; nth < header->jumpMeshConnectionCount; ++nth ) {
+		dtJumpMeshConnection* jp = &jumpMeshConnection[nth];
+		for( int i = 0; i < 3; ++i ) {
+			dtSwapEndian( &jp->startPosition[i] );
+		}
+		for( int i = 0; i < 3; ++i ) {
+			dtSwapEndian( &jp->endPosition[i] );
+		}
+	}
+#endif // MODIFY_OFF_MESH_CONNECTION
 	
 	return true;
 }

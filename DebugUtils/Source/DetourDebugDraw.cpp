@@ -145,11 +145,11 @@ static void drawMeshTile(duDebugDraw* dd, const dtNavMesh& mesh, const dtNavMesh
 			}
 			else
 			{
-				if( !rcCanMovableArea( p->getArea() ) ) {
-					col = duIntToCol(p->getArea(), 64);
+				if( rcCanMovableArea( p->getArea() ) ) {
+					col = duRGBA(0,192,255,64);
 				}
 				else {
-					col = duRGBA(0,192,255,64);
+					col = duIntToCol(p->getArea(), 64);
 				}
 			}
 		}
@@ -189,6 +189,7 @@ static void drawMeshTile(duDebugDraw* dd, const dtNavMesh& mesh, const dtNavMesh
 			else
 				col = duDarkenCol(duIntToCol(p->getArea(), 220));
 			
+#ifndef MODIFY_OFF_MESH_CONNECTION
 			const dtOffMeshConnection* con = &tile->offMeshCons[i - tile->header->offMeshBase];
 			const float* va = &tile->verts[p->verts[0]*3];
 			const float* vb = &tile->verts[p->verts[1]*3];
@@ -225,6 +226,7 @@ static void drawMeshTile(duDebugDraw* dd, const dtNavMesh& mesh, const dtNavMesh
 			// Connection arc.
 			duAppendArc(dd, con->pos[0],con->pos[1],con->pos[2], con->pos[3],con->pos[4],con->pos[5], 0.25f,
 						(con->flags & 1) ? 0.6f : 0, 0.6f, col);
+#endif // !MODIFY_OFF_MESH_CONNECTION
 		}
 		dd->end();
 	}
@@ -457,6 +459,7 @@ void duDebugDrawNavMeshPoly(duDebugDraw* dd, const dtNavMesh& mesh, dtPolyRef re
 	const unsigned int c = (col & 0x00ffffff) | (64 << 24);
 	const unsigned int ip = (unsigned int)(poly - tile->polys);
 
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	if (poly->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
 	{
 		dtOffMeshConnection* con = &tile->offMeshCons[ip - tile->header->offMeshBase];
@@ -470,6 +473,7 @@ void duDebugDrawNavMeshPoly(duDebugDraw* dd, const dtNavMesh& mesh, dtPolyRef re
 		dd->end();
 	}
 	else
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	{
 		const dtPolyDetail* pd = &tile->detailMeshes[ip];
 

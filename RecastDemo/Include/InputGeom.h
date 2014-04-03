@@ -23,6 +23,8 @@
 #include "MeshLoaderObj.h"
 #include "Sample.h"
 #include <string>
+#include <vector>
+#include "..\..\Detour\Include\DetourNavMesh.h"
 
 static const int MAX_CONVEXVOL_PTS = 12;
 struct ConvexVolume
@@ -33,6 +35,7 @@ struct ConvexVolume
 	int area;
 };
 
+
 class InputGeom
 {
 	rcChunkyTriMesh* m_chunkyMesh;
@@ -41,7 +44,7 @@ class InputGeom
 	
 	/// @name Off-Mesh connections.
 	///@{
-	static const int MAX_OFFMESH_CONNECTIONS = 1000000;
+	static const int MAX_OFFMESH_CONNECTIONS = 10000;
 	float m_offMeshConVerts[MAX_OFFMESH_CONNECTIONS*3*2];
 	float m_offMeshConRads[MAX_OFFMESH_CONNECTIONS];
 	unsigned char m_offMeshConDirs[MAX_OFFMESH_CONNECTIONS];
@@ -106,6 +109,11 @@ public:
 #ifdef INTEGRATION_BUILD
 	void	setIntegrationBuild( const bool integrationBuild )	{	m_integrationBuild = integrationBuild;	}
 #endif // INTEGRATION_BUILD
+
+// #ifdef MODIFY_OFF_MESH_CONNECTION
+	std::vector<dtJumpMeshConnection>	tableJumpMeshConnection;
+	int jumpMeshConnectionCount;
+// #endif // MODIFY_OFF_MESH_CONNECTION
 };
 
 #endif // INPUTGEOM_H

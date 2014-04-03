@@ -279,23 +279,24 @@ void rcMarkWalkableTriangles(rcContext* ctx, const float walkableSlopeAngle,
 	{
 		const int* tri = &tris[i*3];
 		calcTriNormal(&verts[tri[0]*3], &verts[tri[1]*3], &verts[tri[2]*3], norm);
-#ifdef MODIFY_VOXEL_FLAG
+//#ifdef MODIFY_VOXEL_FLAG
 		const bool terrain = tri[0] < RC_MAX_GROUND_FLOOR_VERTICES && tri[1] < RC_MAX_GROUND_FLOOR_VERTICES && tri[2] < RC_MAX_GROUND_FLOOR_VERTICES;
-#endif // MODIFY_VOXEL_FLAG
+//#endif // MODIFY_VOXEL_FLAG
 		// Check if the face is walkable.
 #ifdef MODIFY_VOXEL_FLAG
 		if( walkableThr < norm[1] ) {
-			areas[i] = terrain ? RC_TERRAIN_WALKABLE_AREA : RC_OBJECT_WALKABLE_AREA;
+			areas[i] = terrain ? RC_TERRAIN_AREA | RC_WALKABLE_AREA : RC_OBJECT_AREA | RC_WALKABLE_AREA;
 		}
 		else {
-			areas[i] = terrain ? RC_TERRAIN_WALKABLE_AREA : RC_OBJECT_UNWALKABLE_AREA;
+			areas[i] = terrain ? RC_TERRAIN_AREA | RC_WALKABLE_AREA : RC_OBJECT_AREA | RC_UNWALKABLE_AREA;;
 		}
 #else // MODIFY_VOXEL_FLAG
 		if (norm[1] > walkableThr) {
-			areas[i] = RC_TERRAIN_WALKABLE_AREA;
+			//areas[i] = RC_WALKABLE_AREA;
+			areas[i] = terrain ? RC_WALKABLE_AREA : 1;
 		}
 		else {
-			areas[i] = RC_NULL_AREA;
+			areas[i] = terrain ? RC_NULL_AREA : 2;
 		}
 #endif // MODIFY_VOXEL_FLAG
 	}
@@ -480,13 +481,13 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 						// Check that the gap between the spans is walkable,
 						// and that the climb height between the gaps is not too high.
 #ifdef MODIFY_VOXEL_FLAG
-						if( /*(top - bot) >= walkableHeight &&*/ rcAbs((int)ns.y - (int)s.y) <= walkableClimb && rcIsSimilarTypeArea(area_flag, side_area_flag) )
+						if( (top - bot) >= walkableHeight && rcAbs((int)ns.y - (int)s.y) <= walkableClimb && rcIsSimilarTypeArea(area_flag, side_area_flag) )
 #else // MODIFY_VOXEL_FLAG
 						if ((top - bot) >= walkableHeight && rcAbs((int)ns.y - (int)s.y) <= walkableClimb)
 #endif // MODIFY_VOXEL_FLAG
 						{
 #ifdef MODIFY_VOXEL_FLAG
-							if( rcIsTerrainArea(area_flag) || (rcIsObjectArea(area_flag) && (top - bot) >= walkableHeight) ) {
+							//if( rcIsTerrainArea(area_flag) || (rcIsObjectArea(area_flag) && (top - bot) >= walkableHeight) ) {
 #endif // MODIFY_VOXEL_FLAG
 							// Mark direction as walkable.
 							const int lidx = k - (int)nc.index;
@@ -498,7 +499,7 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 							rcSetCon(s, dir, lidx);
 							break;
 #ifdef MODIFY_VOXEL_FLAG
-							}
+							//}
 #endif // MODIFY_VOXEL_FLAG
 						}
 					}
@@ -547,14 +548,14 @@ static int getCompactHeightFieldMemoryusage(const rcCompactHeightfield& chf)
 #ifdef MODIFY_VOXEL_FLAG
 namespace
 {
-	void	rcMarkWalkableLowerFloorSpan( const int x, const int y, rcHeightfield& solid )
+	void	rcMarkWalkableLowerFloorSpan( const int x, const int y, const int walkableClimb, rcHeightfield& solid )
 	{
 		const int w = solid.width;
 		const int h = solid.height;
 
 		for( rcSpan* s = solid.spans[x + y*w]; s != NULL; s = s->next ) {
-			if( s->area != RC_TERRAIN_CLIMBABLE_AREA ) {
-				break;
+			if( (s->area & RC_UNDER_FLOOR_AREA) != RC_UNDER_FLOOR_AREA ) {
+				continue;
 			}
 			for( int dir = 0; dir < 4; ++dir ) {
 				const int dx = x + rcGetDirOffsetX(dir);
@@ -563,10 +564,16 @@ namespace
 					continue;
 				}
 				for( const rcSpan* ns = solid.spans[dx + dy*w]; ns != NULL; ns = ns->next ) {
-					if( ns->area != RC_TERRAIN_WALKABLE_AREA ) {
-						break;
+					if( (ns->area & RC_UNDER_FLOOR_AREA) == RC_UNDER_FLOOR_AREA ) {
+						continue;
 					}
-					s->area = RC_TERRAIN_WALKABLE_AREA;
+					if( !rcCanMovableArea( ns->area ) ) {
+						continue;
+					}
+					const int gap = rcAbs( static_cast<int>(s->smax) - static_cast<int>(ns->smax) );
+					if( gap <= walkableClimb ) {
+						s->area &= ~RC_UNDER_FLOOR_AREA;
+					}
 				}
 			}
 		}
@@ -700,19 +707,24 @@ namespace
 void	rcModifySpans( rcContext* ctx, const int walkableHeight, const int walkableClimb, rcHeightfield& solid )
 {
 	///*
-	rcFilterLowHangingWalkableObstacles( ctx, walkableClimb, solid );
-	rcFilterLedgeSpans( ctx, walkableHeight, walkableClimb, solid );
-	rcFilterWalkableLowHeightSpans( ctx, walkableHeight, solid );
+	rcMarkWalkableLowHangingObstacles( ctx, walkableClimb, solid );
+	rcFilterUnwalkableLowHeightSpans( ctx, walkableHeight, solid );
+
+	//rcFilterUnwalkableLedgeSpans( ctx, walkableHeight, walkableClimb, solid );
+	//rcFilterLedgeSpans( ctx, walkableHeight, walkableClimb, solid );
+
+	rcFilterUnderFloorObjectSpans( ctx, solid );
+	rcMarkTerrainWalkableUnderFloorSpans( ctx, walkableClimb, solid );
+	//*/
+
+	///*
+	rcFilterSpans( ctx, walkableHeight, walkableClimb, solid );
 	//*/
 
 	/*
-	rcFilterAlignmentSpans( ctx, solid );
-	rcMarkTerrainUnderFloorObjectSpans( ctx, walkableClimb, solid );
-	rcMarkObjectLedgeSpans( ctx, walkableClimb, solid );
-	rcFilterUnwalkableLowHeightSpans( ctx, walkableHeight, walkableClimb, solid );
- 	rcMarkExpandObjectLedgeSpans( ctx, walkableHeight, walkableClimb, solid );
-
-	rcFilterSpans( ctx, walkableHeight, walkableClimb, solid );
+	rcFilterLowHangingWalkableObstacles( ctx, walkableClimb, solid );
+	rcFilterLedgeSpans( ctx, walkableHeight, walkableClimb, solid );
+	rcFilterWalkableLowHeightSpans( ctx, walkableHeight, solid );
 	*/
 }
 
@@ -811,7 +823,7 @@ void	rcFilterAlignmentSpans( rcContext* ctx, rcHeightfield& solid )
 	ctx->stopTimer( RC_TIMER_TEMPORARY );
 }
 
-void	rcFilterUnderFloorObjectSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid )
+void	rcFilterUnderFloorObjectSpans( rcContext* ctx, rcHeightfield& solid )
 {
 	rcAssert( ctx );
 
@@ -823,12 +835,8 @@ void	rcFilterUnderFloorObjectSpans( rcContext* ctx, const int walkableClimb, rcH
 	for( int y = 0; y < h; ++y ) {
 		for( int x = 0; x < w; ++x ) {
 			for( rcSpan* s = solid.spans[x + y*w]; s != NULL && s->next != NULL; s = s->next ) {
-				if( rcIsTerrainArea(s->area) && rcIsObjectArea(s->next->area) ) {
-					s->area = RC_TERRAIN_CLIMBABLE_AREA;
-					const int gap = static_cast<int>(s->next->smin) - static_cast<int>(s->smax);
-					if( gap < walkableClimb /*&& (s->next->area & RC_OBJECT_UNWALKABLE_AREA) == RC_OBJECT_UNWALKABLE_AREA*/ ) {
-						s->area = RC_TERRAIN_UNWALKABLE_AREA | RC_TERRAIN_CLIMBABLE_AREA;
-					}
+				if( rcCanMovableArea( s->area ) /*&& rcCanMovableArea( s->next->area )*/ ) {
+					s->area |= RC_UNDER_FLOOR_AREA;
 				}
 			}
 		}
@@ -837,7 +845,7 @@ void	rcFilterUnderFloorObjectSpans( rcContext* ctx, const int walkableClimb, rcH
 	ctx->stopTimer( RC_TIMER_TEMPORARY );
 }
 
-void	rcMarkTerrainWalkableUnderFloorSpans( rcContext* ctx, rcHeightfield& solid )
+void	rcMarkTerrainWalkableUnderFloorSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid )
 {
 	rcAssert( ctx );
 
@@ -848,25 +856,25 @@ void	rcMarkTerrainWalkableUnderFloorSpans( rcContext* ctx, rcHeightfield& solid 
 
 	for( int y = 0; y < h; ++y ) {
 		for( int x = 0; x < w; ++x ) {
-			rcMarkWalkableLowerFloorSpan( x, y, solid );
+			rcMarkWalkableLowerFloorSpan( x, y, walkableClimb, solid );
 		}
 	}
 
 	for( int x = 0; x < w; ++x ) {
 		for( int y = 0; y < h; ++y ) {
-			rcMarkWalkableLowerFloorSpan( x, y, solid );
+			rcMarkWalkableLowerFloorSpan( x, y, walkableClimb, solid );
 		}
 	}
 
 	for( int y = h-1; 0 <= y; --y ) {
 		for( int x = w-1; 0 <= x; --x ) {
-			rcMarkWalkableLowerFloorSpan( x, y, solid );
+			rcMarkWalkableLowerFloorSpan( x, y, walkableClimb, solid );
 		}
 	}
 
 	for( int x = w-1; 0 <= x; --x ) {
 		for( int y = h-1; 0 <= y; --y ) {
-			rcMarkWalkableLowerFloorSpan( x, y, solid );
+			rcMarkWalkableLowerFloorSpan( x, y, walkableClimb, solid );
 		}
 	}
 
@@ -875,171 +883,171 @@ void	rcMarkTerrainWalkableUnderFloorSpans( rcContext* ctx, rcHeightfield& solid 
 
 void	rcFilterUnwalkableUnderFloorObjectInsideSpans( rcContext* ctx, rcHeightfield& solid )
 {
-	rcAssert( ctx );
-
-	ctx->startTimer( RC_TIMER_TEMPORARY );
-
-	const int w = solid.width;
-	const int h = solid.height;
-
-	for( int y = 0; y < h; ++y ) {
-		for( int x = 0; x < w; ++x ) {
-			rcSpan* s = solid.spans[x + y*w];
-			if( s == NULL || s->area != (RC_TERRAIN_UNWALKABLE_AREA | RC_TERRAIN_CLIMBABLE_AREA) ) {
-				continue;
-			}
-
-			for( int dir = 0; dir < 4; ++dir ) {
-				const int dx = x + rcGetDirOffsetX(dir);
-				const int dy = y + rcGetDirOffsetY(dir);
-				if( dx < 0 || dy < 0 || dx >= w || dy >= h ) {
-					continue;
-				}
-				const rcSpan* ns = solid.spans[dx + dy*w];
-				if( ns == NULL || ns->area != RC_TERRAIN_WALKABLE_AREA ) {
-					continue;
-				}
-
-				const int opposite_dir = rcGetOppositeSideDir( dir );
-				const int opposite_x = x + rcGetDirOffsetX(opposite_dir);
-				const int opposite_y = y + rcGetDirOffsetY(opposite_dir);
-				if( opposite_x < 0 || opposite_y < 0 || opposite_x >= w || opposite_y >= h ) {
-					continue;
-				}
-				rcSpan* opposite_ns = solid.spans[opposite_x + opposite_y*w];
-				if( opposite_ns != NULL && rcIsTerrainArea(opposite_ns->area) && (opposite_ns->area & RC_TERRAIN_WALKABLE_AREA ) != RC_TERRAIN_WALKABLE_AREA ) {
-					opposite_ns->area |= RC_TERRAIN_UNWALKABLE_AREA;
-					//////////////////////////////////////////////////////////////////////////
-					s->area |= RC_TERRAIN_WALKABLE_AREA;
-				}
-			}
-		}
-	}
-
-	for( int y = 0; y < h; ++y ) {
-		for( int x = 0; x < w; ++x ) {
-			rcSpan* s = solid.spans[x + y*w];
-			if( s == NULL || s->area != RC_TERRAIN_CLIMBABLE_AREA ) {
-				continue;
-			}
-
-			for( int dir = 0; dir < 4; ++dir ) {
-				const int dx = x + rcGetDirOffsetX(dir);
-				const int dy = y + rcGetDirOffsetY(dir);
-				if( dx < 0 || dy < 0 || dx >= w || dy >= h ) {
-					continue;
-				}
-				rcSpan* ns = solid.spans[dx + dy*w];
-				if( ns != NULL && ns->area == (RC_TERRAIN_UNWALKABLE_AREA | RC_TERRAIN_CLIMBABLE_AREA) ) {
-					s->area = RC_TERRAIN_UNWALKABLE_AREA;
-				}
-			}
-		}
-	}
-
-	ctx->stopTimer( RC_TIMER_TEMPORARY );
+// 	rcAssert( ctx );
+// 
+// 	ctx->startTimer( RC_TIMER_TEMPORARY );
+// 
+// 	const int w = solid.width;
+// 	const int h = solid.height;
+// 
+// 	for( int y = 0; y < h; ++y ) {
+// 		for( int x = 0; x < w; ++x ) {
+// 			rcSpan* s = solid.spans[x + y*w];
+// 			if( s == NULL || s->area != (RC_TERRAIN_UNWALKABLE_AREA | RC_TERRAIN_CLIMBABLE_AREA) ) {
+// 				continue;
+// 			}
+// 
+// 			for( int dir = 0; dir < 4; ++dir ) {
+// 				const int dx = x + rcGetDirOffsetX(dir);
+// 				const int dy = y + rcGetDirOffsetY(dir);
+// 				if( dx < 0 || dy < 0 || dx >= w || dy >= h ) {
+// 					continue;
+// 				}
+// 				const rcSpan* ns = solid.spans[dx + dy*w];
+// 				if( ns == NULL || ns->area != RC_TERRAIN_WALKABLE_AREA ) {
+// 					continue;
+// 				}
+// 
+// 				const int opposite_dir = rcGetOppositeSideDir( dir );
+// 				const int opposite_x = x + rcGetDirOffsetX(opposite_dir);
+// 				const int opposite_y = y + rcGetDirOffsetY(opposite_dir);
+// 				if( opposite_x < 0 || opposite_y < 0 || opposite_x >= w || opposite_y >= h ) {
+// 					continue;
+// 				}
+// 				rcSpan* opposite_ns = solid.spans[opposite_x + opposite_y*w];
+// 				if( opposite_ns != NULL && rcIsTerrainArea(opposite_ns->area) && (opposite_ns->area & RC_TERRAIN_WALKABLE_AREA ) != RC_TERRAIN_WALKABLE_AREA ) {
+// 					opposite_ns->area |= RC_TERRAIN_UNWALKABLE_AREA;
+// 					//////////////////////////////////////////////////////////////////////////
+// 					s->area |= RC_TERRAIN_WALKABLE_AREA;
+// 				}
+// 			}
+// 		}
+// 	}
+// 
+// 	for( int y = 0; y < h; ++y ) {
+// 		for( int x = 0; x < w; ++x ) {
+// 			rcSpan* s = solid.spans[x + y*w];
+// 			if( s == NULL || s->area != RC_TERRAIN_CLIMBABLE_AREA ) {
+// 				continue;
+// 			}
+// 
+// 			for( int dir = 0; dir < 4; ++dir ) {
+// 				const int dx = x + rcGetDirOffsetX(dir);
+// 				const int dy = y + rcGetDirOffsetY(dir);
+// 				if( dx < 0 || dy < 0 || dx >= w || dy >= h ) {
+// 					continue;
+// 				}
+// 				rcSpan* ns = solid.spans[dx + dy*w];
+// 				if( ns != NULL && ns->area == (RC_TERRAIN_UNWALKABLE_AREA | RC_TERRAIN_CLIMBABLE_AREA) ) {
+// 					s->area = RC_TERRAIN_UNWALKABLE_AREA;
+// 				}
+// 			}
+// 		}
+// 	}
+// 
+// 	ctx->stopTimer( RC_TIMER_TEMPORARY );
 }
 
 void	rcMarkTerrainUnderFloorObjectSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid )
 {
-	rcFilterUnderFloorObjectSpans( ctx, walkableClimb, solid );
-	rcMarkTerrainWalkableUnderFloorSpans( ctx, solid );
-	rcFilterUnwalkableUnderFloorObjectInsideSpans( ctx, solid );
+// 	rcFilterUnderFloorObjectSpans( ctx, walkableClimb, solid );
+// 	rcMarkTerrainWalkableUnderFloorSpans( ctx, solid );
+// 	rcFilterUnwalkableUnderFloorObjectInsideSpans( ctx, solid );
 }
 
 void	rcMarkObjectLedgeSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid )
 {
-	rcAssert( ctx );
-
-	ctx->startTimer( RC_TIMER_TEMPORARY );
-
-	const int w = solid.width;
-	const int h = solid.height;
-
-	for( int y = 0; y < h; ++y ) {
-		for( int x = 0; x < w; ++x ) {
-			for( rcSpan* s = solid.spans[x + y*w]; s != NULL; s = s->next ) {
-				if( s->area != RC_OBJECT_UNWALKABLE_AREA ) {
-					continue;
-				}
-				for( int dir = 0; dir < 4; ++dir ) {
-					const int dx = x + rcGetDirOffsetX(dir);
-					const int dy = y + rcGetDirOffsetY(dir);
-					if( dx < 0 || dy < 0 || dx >= w || dy >= h ) {
-						continue;
-					}
-					for( rcSpan* ns = solid.spans[dx + dy*w]; ns != NULL; ns = ns->next ) {
-						if( ns->area == RC_OBJECT_WALKABLE_AREA ) {
-							if( rcAbs( static_cast<int>(s->smax) - static_cast<int>(ns->smax) ) < walkableClimb ) {
-								s->area |= RC_OBJECT_WALKABLE_AREA;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	ctx->stopTimer( RC_TIMER_TEMPORARY );
+// 	rcAssert( ctx );
+// 
+// 	ctx->startTimer( RC_TIMER_TEMPORARY );
+// 
+// 	const int w = solid.width;
+// 	const int h = solid.height;
+// 
+// 	for( int y = 0; y < h; ++y ) {
+// 		for( int x = 0; x < w; ++x ) {
+// 			for( rcSpan* s = solid.spans[x + y*w]; s != NULL; s = s->next ) {
+// 				if( s->area != RC_OBJECT_UNWALKABLE_AREA ) {
+// 					continue;
+// 				}
+// 				for( int dir = 0; dir < 4; ++dir ) {
+// 					const int dx = x + rcGetDirOffsetX(dir);
+// 					const int dy = y + rcGetDirOffsetY(dir);
+// 					if( dx < 0 || dy < 0 || dx >= w || dy >= h ) {
+// 						continue;
+// 					}
+// 					for( rcSpan* ns = solid.spans[dx + dy*w]; ns != NULL; ns = ns->next ) {
+// 						if( ns->area == RC_OBJECT_WALKABLE_AREA ) {
+// 							if( rcAbs( static_cast<int>(s->smax) - static_cast<int>(ns->smax) ) < walkableClimb ) {
+// 								s->area |= RC_OBJECT_WALKABLE_AREA;
+// 							}
+// 						}
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}
+// 
+// 	ctx->stopTimer( RC_TIMER_TEMPORARY );
 }
 
 void	rcMarkExpandObjectLedgeSpans( rcContext* ctx, const int walkableHeight, const int walkableClimb, rcHeightfield& solid )
 {
-	rcAssert( ctx );
-
-	ctx->startTimer( RC_TIMER_TEMPORARY );
-
-	const int w = solid.width;
-	const int h = solid.height;
-
-	for( int y = 0; y < h; ++y ) {
-		for( int x = 0; x < w; ++x ) {
-			for( rcSpan* s = solid.spans[x + y*w]; s != NULL; s = s->next ) {
-				if( !rcIsObjectArea(s->area) || s->area != (RC_OBJECT_UNWALKABLE_AREA | RC_OBJECT_WALKABLE_AREA) ) {
-					continue;
-				}
-				for( int dir = 0; dir < 4; ++dir ) {
-					const int dx = x + rcGetDirOffsetX(dir);
-					const int dy = y + rcGetDirOffsetY(dir);
-					if( dx < 0 || dy < 0 || dx >= w || dy >= h ) {
-						continue;
-					}
-					bool connected = false;
-					for( rcSpan* ns = solid.spans[dx + dy*w]; ns != NULL; ns = ns->next ) {
-						if( !rcIsObjectArea( ns->area ) ) {
-							continue;
-						}
-						const int gap = rcAbs( static_cast<int>(s->smax) - static_cast<int>(ns->smax) );
-						if( gap <= walkableClimb && (ns->area & RC_OBJECT_WALKABLE_AREA) == RC_OBJECT_WALKABLE_AREA ) {
-							connected = true;
-							break;
-						}
-					}
-					if( !connected ) {
-						addSpan( solid, dx, dy, s->smax-1, s->smax, RC_OBJECT_CLIMBABLE_AREA, walkableClimb );
-						const int left = rcGetLeftSideDir( dir );
-						const int right = rcGetRightSideDir( dir );
-						for( int nth = 0; nth < 2; ++nth ) {
-							int ddx = 0, ddy = 0;
-							if( (nth&1) == 0 ) {
-								ddx = dx + rcGetDirOffsetX(left);
-								ddy = dy + rcGetDirOffsetY(left);
-							}
-							else {
-								ddx = dx + rcGetDirOffsetX(right);
-								ddy = dy + rcGetDirOffsetY(right);
-							}
-							if( 0 <= ddx && 0 <= ddy && ddx < w && ddy < h ) {
-								addSpan( solid, ddx, ddy, s->smax-1, s->smax, RC_OBJECT_CLIMBABLE_AREA, walkableClimb );
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	ctx->stopTimer( RC_TIMER_TEMPORARY );
+// 	rcAssert( ctx );
+// 
+// 	ctx->startTimer( RC_TIMER_TEMPORARY );
+// 
+// 	const int w = solid.width;
+// 	const int h = solid.height;
+// 
+// 	for( int y = 0; y < h; ++y ) {
+// 		for( int x = 0; x < w; ++x ) {
+// 			for( rcSpan* s = solid.spans[x + y*w]; s != NULL; s = s->next ) {
+// 				if( !rcIsObjectArea(s->area) || s->area != (RC_OBJECT_UNWALKABLE_AREA | RC_OBJECT_WALKABLE_AREA) ) {
+// 					continue;
+// 				}
+// 				for( int dir = 0; dir < 4; ++dir ) {
+// 					const int dx = x + rcGetDirOffsetX(dir);
+// 					const int dy = y + rcGetDirOffsetY(dir);
+// 					if( dx < 0 || dy < 0 || dx >= w || dy >= h ) {
+// 						continue;
+// 					}
+// 					bool connected = false;
+// 					for( rcSpan* ns = solid.spans[dx + dy*w]; ns != NULL; ns = ns->next ) {
+// 						if( !rcIsObjectArea( ns->area ) ) {
+// 							continue;
+// 						}
+// 						const int gap = rcAbs( static_cast<int>(s->smax) - static_cast<int>(ns->smax) );
+// 						if( gap <= walkableClimb && (ns->area & RC_OBJECT_WALKABLE_AREA) == RC_OBJECT_WALKABLE_AREA ) {
+// 							connected = true;
+// 							break;
+// 						}
+// 					}
+// 					if( !connected ) {
+// 						addSpan( solid, dx, dy, s->smax-1, s->smax, RC_OBJECT_CLIMBABLE_AREA, walkableClimb );
+// 						const int left = rcGetLeftSideDir( dir );
+// 						const int right = rcGetRightSideDir( dir );
+// 						for( int nth = 0; nth < 2; ++nth ) {
+// 							int ddx = 0, ddy = 0;
+// 							if( (nth&1) == 0 ) {
+// 								ddx = dx + rcGetDirOffsetX(left);
+// 								ddy = dy + rcGetDirOffsetY(left);
+// 							}
+// 							else {
+// 								ddx = dx + rcGetDirOffsetX(right);
+// 								ddy = dy + rcGetDirOffsetY(right);
+// 							}
+// 							if( 0 <= ddx && 0 <= ddy && ddx < w && ddy < h ) {
+// 								addSpan( solid, ddx, ddy, s->smax-1, s->smax, RC_OBJECT_CLIMBABLE_AREA, walkableClimb );
+// 							}
+// 						}
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}
+// 
+// 	ctx->stopTimer( RC_TIMER_TEMPORARY );
 }
 
 
@@ -1055,14 +1063,56 @@ void	rcFilterSpans( rcContext* ctx, const int walkableHeight, const int walkable
 	for( int y = 0; y < h; ++y ) {
 		for( int x = 0; x < w; ++x ) {
 			for( rcSpan* s = solid.spans[x + y*w]; s != NULL; s = s->next ) {
-				if( rcIsWalkableTerrainArea(s->area) ) {
-					s->area = RC_TERRAIN_WALKABLE_AREA;
-				}
-				else if( rcIsWalkableObjectArea(s->area) ) {
-					s->area = RC_OBJECT_WALKABLE_AREA;
-				}
-				else {
+				if( (s->area & RC_UNWALKABLE_AREA) == RC_UNWALKABLE_AREA ) {
 					s->area = RC_NULL_AREA;
+				}
+
+				//////////////////////////////////////////////////////////////////////////
+				// temporary
+// 				if( (s->area & RC_UNDER_FLOOR_AREA) == RC_UNDER_FLOOR_AREA ) {
+// 					s->area = RC_NULL_AREA;
+// 				}
+				//////////////////////////////////////////////////////////////////////////
+
+				if( rcCanMovableArea( s->area ) ) {
+					s->area |= RC_TERRAIN_AREA;
+				}
+			}
+		}
+	}
+
+	ctx->stopTimer( RC_TIMER_TEMPORARY );
+}
+
+void	rcMarkSideLedgeSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid )
+{
+	rcAssert( ctx );
+
+	ctx->startTimer( RC_TIMER_TEMPORARY );
+
+	const int w = solid.width;
+	const int h = solid.height;
+
+	for( int y = 0; y < h; ++y ) {
+		for( int x = 0; x < w; ++x ) {
+			for( rcSpan* s = solid.spans[x + y*w]; s != NULL; s = s->next ) {
+				if( !rcIsObjectArea( s->area ) || !rcIsWalkableObjectArea( s->area ) ) {
+					continue;
+				}
+				for( int dir = 0; dir < 4; ++dir ) {
+					const int dx = x + rcGetDirOffsetX(dir);
+					const int dy = y + rcGetDirOffsetY(dir);
+					if( dx < 0 || dy < 0 || dx >= w || dy >= h ) {
+						continue;
+					}
+					for( rcSpan* ns = solid.spans[dx + dy*w]; ns != NULL; ns = ns->next ) {
+						if( (ns->area & RC_UNWALKABLE_AREA) == RC_UNWALKABLE_AREA ) {
+							const float gap = rcAbs( s->smax - ns->smax );
+							if( gap <= walkableClimb ) {
+								s->area |= RC_CLIMBABLE_AREA;
+							}
+						}
+					}
 				}
 			}
 		}
@@ -1085,17 +1135,20 @@ void	rcMarkWalkableLowHangingObstacles( rcContext* ctx, const int walkableClimb,
 		for( int x = 0; x < w; ++x ) {
 			rcSpan* ps = 0;
 			bool previousWalkable = false;
-			unsigned char previousArea = RC_NULL_AREA;
 
-			for( rcSpan* s = solid.spans[x + y*w]; s; ps = s, s = s->next ) {
-				const bool walkable = rcCanMovableArea( s->area );
+			for( rcSpan* s = solid.spans[x + y*w]; s != NULL; ps = s, s = s->next ) {
+				const bool walkable = rcIsWalkableArea( s->area );
 				if( !walkable && previousWalkable ) {
 					if( rcAbs((int)s->smax - (int)ps->smax) <= walkableClimb ) {
-						s->area = previousArea;
+						if( rcIsSimilarTypeArea( s->area, ps->area ) ) {
+							s->area = rcMax( s->area, ps->area );
+						}
+						else {
+							s->area = RC_OBJECT_AREA | RC_WALKABLE_AREA;
+						}
 					}
 				}
-				previousWalkable = walkable ? true : previousWalkable;
-				previousArea = previousWalkable ? static_cast<unsigned char>( s->area ) : previousArea;
+				previousWalkable = walkable;
 			}
 		}
 	}
@@ -1103,7 +1156,7 @@ void	rcMarkWalkableLowHangingObstacles( rcContext* ctx, const int walkableClimb,
 	ctx->stopTimer( RC_TIMER_TEMPORARY );
 }
 
-void	rcFilterUnwalkableLowHeightSpans( rcContext* ctx, const int walkableHeight, const int walkableClimb, rcHeightfield& solid )
+void	rcFilterUnwalkableLowHeightSpans( rcContext* ctx, const int walkableHeight, rcHeightfield& solid )
 {
 	rcAssert( ctx );
 
@@ -1115,11 +1168,10 @@ void	rcFilterUnwalkableLowHeightSpans( rcContext* ctx, const int walkableHeight,
 	for( int y = 0; y < h; ++y ) {
 		for( int x = 0; x < w; ++x ) {
 			for( rcSpan* s = solid.spans[x + y*w]; s != NULL && s->next != NULL; s = s->next ) {
-				if( rcIsTerrainArea(s->area) && (s->area & RC_TERRAIN_WALKABLE_AREA) != RC_TERRAIN_WALKABLE_AREA ) {
-					const int gap = static_cast<int>(s->next->smin) - static_cast<int>(s->smax);
-					if( walkableClimb < gap && gap <= walkableHeight ) {
-						s->area = RC_NULL_AREA;
-					}
+				const int bot = static_cast<int>( s->smax );
+				const int top = static_cast<int>( s->next->smin );
+				if( ( top - bot ) <= walkableHeight ) {
+					s->area = RC_NULL_AREA;
 				}
 			}
 		}
@@ -1140,60 +1192,33 @@ void	rcFilterUnwalkableLedgeSpans( rcContext* ctx, const int walkableHeight, con
 
 	for( int y = 0; y < h; ++y ) {
 		for( int x = 0; x < w; ++x ) {
-			for( rcSpan* s = solid.spans[x + y*w]; s; s = s->next ) {
-				if( !rcCanMovableArea( s->area ) ) {
+			for( rcSpan* s = solid.spans[x + y*w]; s != NULL; s = s->next ) {
+				if( !rcCanMovableArea( s->area ) || !rcIsObjectArea( s->area ) ) {
 					continue;
 				}
 
-				const int bot = (int)(s->smax);
-				const int top = s->next ? (int)(s->next->smin) : MAX_HEIGHT;
-
-				int minh = MAX_HEIGHT;
-
-				int asmin = s->smax;
-				int asmax = s->smax;
+				const int smax = static_cast<int>( s->smax );
+				int connectedEdgeCount = 0;
 
 				for( int dir = 0; dir < 4; ++dir ) {
 					int dx = x + rcGetDirOffsetX(dir);
 					int dy = y + rcGetDirOffsetY(dir);
 					if( dx < 0 || dy < 0 || dx >= w || dy >= h ) {
-						//minh = rcMin(minh, -walkableClimb - bot);
+						++connectedEdgeCount;
 						continue;
 					}
 
-					const rcSpan* ns = solid.spans[dx + dy*w];
-					int nbot = -walkableClimb;
-					int ntop = ns ? (int)ns->smin : MAX_HEIGHT;
-
-					if (rcMin(top,ntop) - rcMax(bot,nbot) > walkableHeight) {
-						minh = rcMin(minh, nbot - bot);
-					}
-
-					for( ns = solid.spans[dx + dy*w]; ns; ns = ns->next ) {
-						nbot = (int)ns->smax;
-						ntop = ns->next ? (int)ns->next->smin : MAX_HEIGHT;
-
-						if( rcMin(top,ntop) - rcMax(bot,nbot) > walkableHeight ) {
-							minh = rcMin(minh, nbot - bot);
-
-							// Find min/max accessible neighbour height. 
-							if( rcAbs(nbot - bot) <= walkableClimb ) {
-								if (nbot < asmin) asmin = nbot;
-								if (nbot > asmax) asmax = nbot;
-							}
+					for( rcSpan* ns = solid.spans[dx + dy*w]; ns != NULL; ns = ns->next ) {
+						const int nsmax = static_cast<int>( ns->smax );
+						if( rcAbs( smax - nsmax ) <= walkableClimb*0.25f ) {
+							++connectedEdgeCount;
 						}
 					}
 				}
 
-				// The current span is close to a ledge if the drop to any
-				// neighbour span is less than the walkableClimb.
-				if( minh < -walkableClimb )
+				if( connectedEdgeCount < 2 ) {
 					s->area = RC_NULL_AREA;
-
-				// If the difference between all neighbours is too large,
-				// we are at steep slope, mark the span as ledge.
-				if( (asmax - asmin) > walkableClimb )
-					s->area = RC_NULL_AREA;
+				}
 			}
 		}
 	}
@@ -1249,3 +1274,18 @@ void	rcTest( const int walkableHeight, const int walkableClimb, rcHeightfield& s
 // 	}
 }
 #endif // MODIFY_VOXEL_FLAG
+
+#ifdef MODIFY_OFF_MESH_CONNECTION
+bool	rcIsOverlapBounds2D( const float* vertexPoint, const float* bmin, const float* bmax )
+{
+	const float extend[3] = {0.4f, 0.0f, 0.4f};
+	float amin[3] = {0}, amax[3] = {0};
+	rcVsub( amin, vertexPoint, extend );
+	rcVadd( amax, vertexPoint, extend );
+
+	bool overlap = true;
+	overlap = (amin[0] > bmax[0] || amax[0] < bmin[0]) ? false : overlap;
+	overlap = (amin[2] > bmax[2] || amax[2] < bmin[2]) ? false : overlap;
+	return overlap;
+}
+#endif // MODIFY_OFF_MESH_CONNECTION

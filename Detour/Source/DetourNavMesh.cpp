@@ -134,6 +134,24 @@ inline void freeLink(dtMeshTile* tile, unsigned int link)
 	tile->linksFreeList = link;
 }
 
+#ifdef MODIFY_OFF_MESH_CONNECTION
+inline unsigned int allocJumpMeshLink( dtMeshTile* tile )
+{
+	if( tile->jumpMeshLinkFreeList == DT_NULL_LINK ) {
+		return DT_NULL_LINK;
+	}
+	unsigned int link = tile->jumpMeshLinkFreeList;
+	tile->jumpMeshLinkFreeList = tile->jumpMeshLink[link].next;
+	return link;
+}
+
+inline void freeJumpMeshLink( dtMeshTile* tile, unsigned int link )
+{
+	tile->jumpMeshLink[link].next = tile->jumpMeshLinkFreeList;
+	tile->jumpMeshLinkFreeList = link;
+}
+#endif // MODIFY_OFF_MESH_CONNECTION
+
 
 dtNavMesh* dtAllocNavMesh()
 {
@@ -452,6 +470,7 @@ void dtNavMesh::connectExtLinks(dtMeshTile* tile, dtMeshTile* target, int side)
 	}
 }
 
+#ifndef MODIFY_OFF_MESH_CONNECTION
 void dtNavMesh::connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int side)
 {
 	if (!tile) return;
@@ -482,7 +501,6 @@ void dtNavMesh::connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int
 		// findNearestPoly may return too optimistic results, further check to make sure. 
 		if (dtSqr(nearestPt[0]-p[0])+dtSqr(nearestPt[2]-p[2]) > dtSqr(targetCon->rad))
 			continue;
-
 		// Make sure the location is on current mesh.
 		float* v = &target->verts[targetPoly->verts[1]*3];
 		dtVcopy(v, nearestPt);
@@ -520,8 +538,8 @@ void dtNavMesh::connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int
 			}
 		}
 	}
-
 }
+#endif // !MODIFY_OFF_MESH_CONNECTION
 
 void dtNavMesh::connectIntLinks(dtMeshTile* tile)
 {
@@ -533,6 +551,10 @@ void dtNavMesh::connectIntLinks(dtMeshTile* tile)
 	{
 		dtPoly* poly = &tile->polys[i];
 		poly->firstLink = DT_NULL_LINK;
+
+#ifdef MODIFY_OFF_MESH_CONNECTION
+		poly->jumpMeshFirstLink = DT_NULL_LINK;
+#endif // MODIFY_OFF_MESH_CONNECTION
 
 		if (poly->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
 			continue;
@@ -560,6 +582,7 @@ void dtNavMesh::connectIntLinks(dtMeshTile* tile)
 	}
 }
 
+#ifndef MODIFY_OFF_MESH_CONNECTION
 void dtNavMesh::baseOffMeshLinks(dtMeshTile* tile)
 {
 	if (!tile) return;
@@ -617,6 +640,7 @@ void dtNavMesh::baseOffMeshLinks(dtMeshTile* tile)
 		}
 	}
 }
+#endif // !MODIFY_OFF_MESH_CONNECTION
 
 void dtNavMesh::closestPointOnPoly(dtPolyRef ref, const float* pos, float* closest, bool* posOverPoly) const
 {
@@ -911,7 +935,13 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 	const int detailVertsSize = dtAlign4(sizeof(float)*3*header->detailVertCount);
 	const int detailTrisSize = dtAlign4(sizeof(unsigned char)*4*header->detailTriCount);
 	const int bvtreeSize = dtAlign4(sizeof(dtBVNode)*header->bvNodeCount);
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	const int offMeshLinksSize = dtAlign4(sizeof(dtOffMeshConnection)*header->offMeshConCount);
+#endif // !MODIFY_OFF_MESH_CONNECTION
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	const int jumpMeshConnectionSize = dtAlign4(sizeof(dtJumpMeshConnection)*header->jumpMeshConnectionCount);
+	const int jumpMeshLinkSize = dtAlign4(sizeof(dtJumpMeshLink)*header->jumpMeshConnectionCount);
+#endif // MODIFY_OFF_MESH_CONNECTION
 	
 	unsigned char* d = data + headerSize;
 	tile->verts = (float*)d; d += vertsSize;
@@ -921,7 +951,13 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 	tile->detailVerts = (float*)d; d += detailVertsSize;
 	tile->detailTris = (unsigned char*)d; d += detailTrisSize;
 	tile->bvTree = (dtBVNode*)d; d += bvtreeSize;
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	tile->offMeshCons = (dtOffMeshConnection*)d; d += offMeshLinksSize;
+#endif // !MODIFY_OFF_MESH_CONNECTION
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	tile->jumpMeshConnection = (dtJumpMeshConnection*)d; d += jumpMeshConnectionSize;
+	tile->jumpMeshLink = (dtJumpMeshLink*)d; d += jumpMeshLinkSize;
+#endif // MODIFY_OFF_MESH_CONNECTION
 
 	// If there are no items in the bvtree, reset the tree pointer.
 	if (!bvtreeSize)
@@ -933,6 +969,16 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 	for (int i = 0; i < header->maxLinkCount-1; ++i)
 		tile->links[i].next = i+1;
 
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	tile->jumpMeshLinkFreeList = 0;
+	if( 0 < header->jumpMeshConnectionCount ) {
+		tile->jumpMeshLink[header->jumpMeshConnectionCount-1].next = DT_NULL_LINK;
+		for( int nth = 0; nth < header->jumpMeshConnectionCount-1; ++nth ) {
+			tile->jumpMeshLink[nth].next = nth+1;
+		}
+	}
+#endif // MODIFY_OFF_MESH_CONNECTION
+
 	// Init tile.
 	tile->header = header;
 	tile->data = data;
@@ -940,7 +986,9 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 	tile->flags = flags;
 
 	connectIntLinks(tile);
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	baseOffMeshLinks(tile);
+#endif // !MODIFY_OFF_MESH_CONNECTION
 
 	// Create connections with neighbour tiles.
 	static const int MAX_NEIS = 32;
@@ -956,8 +1004,10 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 			connectExtLinks(tile, neis[j], -1);
 			connectExtLinks(neis[j], tile, -1);
 		}
+#ifndef MODIFY_OFF_MESH_CONNECTION
 		connectExtOffMeshLinks(tile, neis[j], -1);
 		connectExtOffMeshLinks(neis[j], tile, -1);
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	}
 	
 	// Connect with neighbour tiles.
@@ -968,10 +1018,16 @@ dtStatus dtNavMesh::addTile(unsigned char* data, int dataSize, int flags,
 		{
 			connectExtLinks(tile, neis[j], i);
 			connectExtLinks(neis[j], tile, dtOppositeTile(i));
+#ifndef MODIFY_OFF_MESH_CONNECTION
 			connectExtOffMeshLinks(tile, neis[j], i);
 			connectExtOffMeshLinks(neis[j], tile, dtOppositeTile(i));
+#endif // !MODIFY_OFF_MESH_CONNECTION
 		}
 	}
+
+// #ifdef MODIFY_OFF_MESH_CONNECTION
+	connectJumpableMeshLinks( tile, header->jumpMeshConnectionCount );
+// #endif // MODIFY_OFF_MESH_CONNECTION
 	
 	if (result)
 		*result = getTileRef(tile);
@@ -1115,8 +1171,8 @@ const dtMeshTile* dtNavMesh::getTile(int i) const
 
 void dtNavMesh::calcTileLoc(const float* pos, int* tx, int* ty) const
 {
-	*tx = (int)floorf((pos[0]-m_orig[0]) / m_tileWidth);
-	*ty = (int)floorf((pos[2]-m_orig[2]) / m_tileHeight);
+	*tx = (int)((pos[0]-m_orig[0]) / m_tileWidth);
+	*ty = (int)((pos[2]-m_orig[2]) / m_tileHeight);
 }
 
 dtStatus dtNavMesh::getTileAndPolyByRef(const dtPolyRef ref, const dtMeshTile** tile, const dtPoly** poly) const
@@ -1240,7 +1296,9 @@ dtStatus dtNavMesh::removeTile(dtTileRef ref, unsigned char** data, int* dataSiz
 	tile->detailVerts = 0;
 	tile->detailTris = 0;
 	tile->bvTree = 0;
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	tile->offMeshCons = 0;
+#endif // !MODIFY_OFF_MESH_CONNECTION
 
 	// Update salt, salt should never be zero.
 #ifdef DT_POLYREF64
@@ -1424,7 +1482,7 @@ dtStatus dtNavMesh::getOffMeshConnectionPolyEndPoints(dtPolyRef prevRef, dtPolyR
 	return DT_SUCCESS;
 }
 
-
+#ifndef MODIFY_OFF_MESH_CONNECTION
 const dtOffMeshConnection* dtNavMesh::getOffMeshConnectionByRef(dtPolyRef ref) const
 {
 	unsigned int salt, it, ip;
@@ -1448,7 +1506,7 @@ const dtOffMeshConnection* dtNavMesh::getOffMeshConnectionByRef(dtPolyRef ref) c
 	dtAssert(idx < (unsigned int)tile->header->offMeshConCount);
 	return &tile->offMeshCons[idx];
 }
-
+#endif // !MODIFY_OFF_MESH_CONNECTION
 
 dtStatus dtNavMesh::setPolyFlags(dtPolyRef ref, unsigned short flags)
 {
@@ -1533,6 +1591,80 @@ const dtMeshTile*	dtNavMesh::getTilesAt( const int x, const int y ) const
 	}
 
 	return 0;
+}
+
+//bool	dtNavMesh::isConnectedPoly( const dtPolyRef startRef, const float* startPos, const dtPolyRef endRef, const float* endPos ) const
+bool	dtNavMesh::isConnectedPoly( const dtPolyRef startRef, const dtPolyRef endRef ) const
+{
+	if( !isValidPolyRef( startRef ) || !isValidPolyRef( endRef ) ) {
+		return false;
+	}
+
+	if( startRef == endRef ) {
+		return true;
+	}
+
+	const dtMeshTile* tile = 0;
+	const dtPoly* poly = 0;
+	getTileAndPolyByRefUnsafe( startRef, &tile, &poly );
+	for( unsigned int i = poly->firstLink; i != DT_NULL_LINK; i = tile->links[i].next ) {
+		const dtLink* link = &tile->links[i];
+		if( link->ref == endRef ) {
+			return true;
+		}
+		const dtMeshTile* next_tile = 0;
+		const dtPoly* next_poly = 0;
+		if( DT_SUCCESS != getTileAndPolyByRef( link->ref, &next_tile, &next_poly ) ) {
+			continue;
+		}
+		if( next_poly->getType() == DT_POLYTYPE_OFFMESH_CONNECTION ) {
+			continue;
+		}
+		for( unsigned int j = next_poly->firstLink; j != DT_NULL_LINK; j = next_tile->links[j].next ) {
+			const dtLink* next_link = &next_tile->links[j];
+			if( next_link->ref == endRef ) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void	dtNavMesh::connectJumpableMeshLinks( dtMeshTile* tile, const int jumpMeshConnectionCount )
+{
+	if( tile == NULL ) {
+		return;
+	}
+
+	for( int nth = 0; nth < jumpMeshConnectionCount; ++nth ) {
+		const float ext[3] = { 0.02f, tile->header->walkableClimb, 0.02f };
+		float resultPos[3];
+		const dtPolyRef startRef = findNearestPolyInTile( tile, tile->jumpMeshConnection[nth].startPosition, ext, resultPos );
+		if( startRef == 0 ) {
+			continue;
+		}
+		const dtPolyRef endRef = findNearestPolyInTile(tile, tile->jumpMeshConnection[nth].endPosition, ext, resultPos);
+		if( endRef == 0 ) {
+			continue;
+		}
+
+		//////////////////////////////////////////////////////////////////////////
+		const unsigned short polyIdx = static_cast<unsigned short>( decodePolyIdPoly( startRef ) );
+		dtPoly* poly = &tile->polys[polyIdx];
+		const unsigned int idx = allocJumpMeshLink( tile );
+		if( idx != DT_NULL_LINK ) {
+			dtJumpMeshLink* link = &tile->jumpMeshLink[idx];
+			link->ref = endRef;
+			link->next = poly->jumpMeshFirstLink;
+			poly->jumpMeshFirstLink = idx;
+			poly->setType( DT_POLYTYPE_GROUND | DT_POLYTYPE_JUMPABLE_MESH_CONNECTION );
+		}
+		else {
+			_asm int 3;
+		}
+		//////////////////////////////////////////////////////////////////////////
+	}
 }
 // MIRCHANG
 //////////////////////////////////////////////////////////////////////////

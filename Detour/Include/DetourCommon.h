@@ -505,7 +505,20 @@ inline bool dtOverlapBounds2D(const float* amin, const float* amax,
 	return overlap;
 }
 
+inline bool dtCompleteOverlapBounds2D(const float* amin, const float* amax, const float* bmin, const float* bmax)
+{
+	if( amin[0] <= bmin[0] && bmax[0] <= amax[0] && amin[2] <= bmin[2] && bmax[2] <= amax[2] ) {
+		return true;
+	}
+	if( bmin[0] <= amin[0] && amax[0] <= bmax[0] && bmin[2] <= amin[2] && amax[2] <= bmax[2] ) {
+		return true;
+	}
+	return false;
+}
+
 float	dtCorrectHeightPointTriangle( const float* pos, const float* verts );
+
+bool	_dtIntersectSegmentPoly2D( const float* p0, const float* p1, const float* verts, const int nverts, int& segMin, int& segMax, float* resultPosition );
 // MIRCHANG
 //////////////////////////////////////////////////////////////////////////
 

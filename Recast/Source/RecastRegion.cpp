@@ -1242,7 +1242,11 @@ bool rcBuildRegionsMonotone(rcContext* ctx, rcCompactHeightfield& chf,
 					const int ax = x + rcGetDirOffsetX(0);
 					const int ay = y + rcGetDirOffsetY(0);
 					const int ai = (int)chf.cells[ax+ay*w].index + rcGetCon(s, 0);
+#ifdef MODIFY_VOXEL_FLAG
+					if ((srcReg[ai] & RC_BORDER_REG) == 0 && rcIsSimilarTypeArea( chf.areas[i], chf.areas[ai] ))
+#else // MODIFY_VOXEL_FLAG
 					if ((srcReg[ai] & RC_BORDER_REG) == 0 && chf.areas[i] == chf.areas[ai])
+#endif // MODIFY_VOXEL_FLAG
 						previd = srcReg[ai];
 				}
 				
@@ -1260,7 +1264,11 @@ bool rcBuildRegionsMonotone(rcContext* ctx, rcCompactHeightfield& chf,
 					const int ax = x + rcGetDirOffsetX(3);
 					const int ay = y + rcGetDirOffsetY(3);
 					const int ai = (int)chf.cells[ax+ay*w].index + rcGetCon(s, 3);
+#ifdef MODIFY_VOXEL_FLAG
+					if (srcReg[ai] && (srcReg[ai] & RC_BORDER_REG) == 0 && rcIsSimilarTypeArea(chf.areas[i], chf.areas[ai]) )
+#else // MODIFY_VOXEL_FLAG
 					if (srcReg[ai] && (srcReg[ai] & RC_BORDER_REG) == 0 && chf.areas[i] == chf.areas[ai])
+#endif // MODIFY_VOXEL_FLAG
 					{
 						unsigned short nr = srcReg[ai];
 						if (!sweeps[previd].nei || sweeps[previd].nei == nr)

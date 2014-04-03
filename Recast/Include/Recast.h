@@ -25,8 +25,8 @@
 #define	MODIFY_OFF_MESH_CONNECTION
 #define	MODIFY_BV_TREE
 #define	MODIFY_SQUARE_SECTOR
-//#define	VARIABLE_TILE_SIZE
-//#define	DIVISION_BUILD
+#define	VARIABLE_TILE_SIZE
+#define	DIVISION_BUILD
 //#define	INTEGRATION_BUILD
 //#define	LOAD_ONLY_OBJECT
 //#define	LOAD_ONLY_TERRAIN
@@ -44,9 +44,9 @@ static const int ALLOW_VERTEX_HEIGHT_GAP = 0;
 
 // default option
 #ifdef VARIABLE_TILE_SIZE
-static const int RC_DIVIDE_VERTICES		= 1000;	// 50,000ea vertices / 50ea tiles
-static const int RC_MIN_COUNT_TILES		= 16;	// 8 x 8 = 5', 40kb	// 16 x 16 = 2', 120kb
-static const int RC_MAX_COUNT_TILES		= 50;
+static const int RC_MIN_COUNT_TILES		= 20;	// 8 x 8 = 5', 40kb	// 16 x 16 = 2', 120kb
+static const int RC_MAX_COUNT_TILES		= 100;	// max 100 x 100
+static const int RC_DIVIDE_VERTICES		= 50000 / RC_MAX_COUNT_TILES;	// 50,000ea vertices / 50ea tiles
 #endif // VARIABLE_TILE_SIZE
 
 /// Recast log categories.
@@ -563,19 +563,32 @@ static const unsigned short RC_MESH_NULL_IDX = 0xffff;
 
 #ifdef MODIFY_VOXEL_FLAG
 /************************************************************************/
-static const unsigned char RC_NULL_AREA					= 0;
+static const unsigned char RC_NULL_AREA			= 0;
 /************************************************************************/
-static const unsigned char RC_TERRAIN_UNWALKABLE_AREA	= 0x01;
-static const unsigned char RC_TERRAIN_CLIMBABLE_AREA	= 0x02;
-static const unsigned char RC_TERRAIN_WALKABLE_AREA		= 0x04;
-static const unsigned char RC_TERRAIN_AREA				= RC_TERRAIN_UNWALKABLE_AREA | RC_TERRAIN_CLIMBABLE_AREA | RC_TERRAIN_WALKABLE_AREA;
+static const unsigned char RC_UNWALKABLE_AREA	= 0x01;
+static const unsigned char RC_CLIMBABLE_AREA	= 0x02;
+static const unsigned char RC_WALKABLE_AREA		= 0x04;
+static const unsigned char RC_UNDER_FLOOR_AREA	= 0x08;
+/************************************************************************/
+static const unsigned char RC_TERRAIN_AREA		= 0x10;
+static const unsigned char RC_OBJECT_AREA		= 0x20;
 /************************************************************************/
 /************************************************************************/
-static const unsigned char RC_OBJECT_UNWALKABLE_AREA	= 0x08;
-static const unsigned char RC_OBJECT_CLIMBABLE_AREA		= 0x10;
-static const unsigned char RC_OBJECT_WALKABLE_AREA		= 0x20;
-static const unsigned char RC_OBJECT_AREA				= RC_OBJECT_UNWALKABLE_AREA | RC_OBJECT_CLIMBABLE_AREA | RC_OBJECT_WALKABLE_AREA;
-/// use 6bit
+// static const unsigned char RC_TERRAIN_UNWALKABLE_AREA	= 0x01;
+// static const unsigned char RC_TERRAIN_CLIMBABLE_AREA	= 0x02;
+// static const unsigned char RC_TERRAIN_WALKABLE_AREA		= 0x04;
+// static const unsigned char RC_TERRAIN_AREA				= RC_TERRAIN_UNWALKABLE_AREA | RC_TERRAIN_CLIMBABLE_AREA | RC_TERRAIN_WALKABLE_AREA;
+// /************************************************************************/
+// /************************************************************************/
+// static const unsigned char RC_OBJECT_UNWALKABLE_AREA	= 0x08;
+// static const unsigned char RC_OBJECT_CLIMBABLE_AREA		= 0x10;
+// static const unsigned char RC_OBJECT_WALKABLE_AREA		= 0x20;
+// static const unsigned char RC_OBJECT_AREA				= RC_OBJECT_UNWALKABLE_AREA | RC_OBJECT_CLIMBABLE_AREA | RC_OBJECT_WALKABLE_AREA;
+/************************************************************************/
+static const unsigned short RC_MESH_FLAG_NULL			= 0;
+static const unsigned short RC_MESH_FLAG_UNDER_FLOOR	= 0x01;
+static const unsigned short RC_MESH_FLAG_TERRAIN		= 0x02;
+static const unsigned short RC_MESH_FLAG_OBJECT			= 0x04;
 /************************************************************************/
 #else // MODIFY_VOXEL_FLAG
 /// Represents the null area.
@@ -586,7 +599,7 @@ static const unsigned char RC_NULL_AREA = 0;
 /// The default area id used to indicate a walkable polygon. 
 /// This is also the maximum allowed area id, and the only non-null area id 
 /// recognized by some steps in the build process. 
-static const unsigned char RC_TERRAIN_WALKABLE_AREA = 63;
+static const unsigned char RC_WALKABLE_AREA = 63;
 #endif // MODIFY_VOXEL_FLAG
 
 #ifdef MODIFY_VOXEL_MOLD
@@ -1115,34 +1128,94 @@ inline bool	rcCanMovableArea( const unsigned char area )
 }
 
 #ifdef MODIFY_VOXEL_FLAG
-inline bool	rcIsTerrainArea( const unsigned char area )
+inline bool	rcIsTerrainArea( const unsigned int area )
 {
-	return ( area & RC_TERRAIN_AREA ) != 0;
+	return (area & RC_TERRAIN_AREA) == RC_TERRAIN_AREA;
 }
 
-inline bool	rcIsWalkableTerrainArea( const unsigned char area )
+inline bool	rcIsObjectArea( const unsigned int area )
 {
-	return rcIsTerrainArea( area ) && ( (area & RC_TERRAIN_CLIMBABLE_AREA) == RC_TERRAIN_CLIMBABLE_AREA || (area & RC_TERRAIN_WALKABLE_AREA) == RC_TERRAIN_WALKABLE_AREA );
+	return (area & RC_OBJECT_AREA) == RC_OBJECT_AREA;
 }
 
-inline bool	rcIsObjectArea( const unsigned char area )
+inline bool rcIsWalkableArea( const unsigned int area )
 {
-	return ( area & RC_OBJECT_AREA ) != 0;
+	return (area & RC_CLIMBABLE_AREA) == RC_CLIMBABLE_AREA || (area & RC_WALKABLE_AREA) == RC_WALKABLE_AREA;
 }
 
-inline bool	rcIsWalkableObjectArea( const unsigned char area )
+inline bool rcIsUnderFloorArea( const unsigned int area )
 {
-	return rcIsObjectArea( area ) && ( (area & RC_OBJECT_CLIMBABLE_AREA) == RC_OBJECT_CLIMBABLE_AREA || (area & RC_OBJECT_WALKABLE_AREA) == RC_OBJECT_WALKABLE_AREA );
+	return (area & RC_UNDER_FLOOR_AREA) == RC_UNDER_FLOOR_AREA;
 }
 
-inline bool rcIsSimilarTypeArea( const unsigned char lhs_area, const unsigned char rhs_area )
+inline bool	rcIsWalkableTerrainArea( const unsigned int area )
+{
+	return rcIsTerrainArea( area ) && rcIsWalkableArea( area );
+}
+
+inline bool	rcIsWalkableObjectArea( const unsigned int area )
+{
+	return rcIsObjectArea( area ) && rcIsWalkableArea( area );
+}
+
+inline bool rcIsSimilarTypeArea( const unsigned int lhs_area, const unsigned int rhs_area )
 {
 	return (rcIsTerrainArea( lhs_area ) && rcIsTerrainArea( rhs_area )) || (rcIsObjectArea(lhs_area) && rcIsObjectArea(rhs_area));
 }
 
-inline bool rcIsWalkableArea( const unsigned char area )
+inline unsigned short	rcGetMeshFlag( const unsigned int area )
 {
-	return (area & RC_TERRAIN_WALKABLE_AREA) != 0 || (area & RC_OBJECT_WALKABLE_AREA) != 0;
+	unsigned short mesh_flag = RC_MESH_FLAG_NULL;
+	
+	if( (area & RC_UNDER_FLOOR_AREA) == RC_UNDER_FLOOR_AREA ) {
+		mesh_flag |= RC_MESH_FLAG_UNDER_FLOOR;
+	}
+	if( (area & RC_TERRAIN_AREA) == RC_TERRAIN_AREA ) {
+		mesh_flag |= RC_MESH_FLAG_TERRAIN;
+	}
+	if( (area & RC_OBJECT_AREA) == RC_OBJECT_AREA ) {
+		mesh_flag |= RC_MESH_FLAG_OBJECT;
+	}
+
+	return mesh_flag;
+}
+
+inline bool	rcIsLinkableMeshFlag( const unsigned short lhs, const unsigned short rhs )
+{
+	if( ((lhs & RC_MESH_FLAG_OBJECT) != RC_MESH_FLAG_OBJECT && (rhs & RC_MESH_FLAG_OBJECT) != RC_MESH_FLAG_OBJECT)
+		|| (lhs == RC_MESH_FLAG_NULL || rhs == RC_MESH_FLAG_NULL) ) {
+		return false;
+	}
+	if( (lhs & RC_MESH_FLAG_UNDER_FLOOR) == RC_MESH_FLAG_UNDER_FLOOR ) {
+		if( (lhs & RC_MESH_FLAG_OBJECT) != RC_MESH_FLAG_OBJECT ) {
+			return false;
+		}
+		if( (rhs & RC_MESH_FLAG_UNDER_FLOOR) != RC_MESH_FLAG_UNDER_FLOOR && (rhs & RC_MESH_FLAG_OBJECT) == RC_MESH_FLAG_OBJECT ) {
+			return false;
+		}
+	}
+	if( (rhs & RC_MESH_FLAG_UNDER_FLOOR) == RC_MESH_FLAG_UNDER_FLOOR ) {
+		if( (rhs & RC_MESH_FLAG_OBJECT) != RC_MESH_FLAG_OBJECT ) {
+			return false;
+		}
+		if( (lhs & RC_MESH_FLAG_UNDER_FLOOR) != RC_MESH_FLAG_UNDER_FLOOR && (lhs & RC_MESH_FLAG_OBJECT) == RC_MESH_FLAG_OBJECT ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+inline bool rcIsConnectedPoly( const float* src_verts, const int src_vertCount, const float* dest_verts, const int dest_vertCount )
+{
+	for( int i = 0; i < src_vertCount; ++i ) {
+		for( int j = 0; j < dest_vertCount; ++j ) {
+			if( src_verts[i*3+0] == dest_verts[j*3+0] && src_verts[i*3+1] == dest_verts[j*3+1] && src_verts[i*3+2] == dest_verts[j*3+2] ) {
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 #endif // MODIFY_VOXEL_FLAG
 
@@ -1248,17 +1321,18 @@ void	rcModifySpans( rcContext* ctx, const int walkableHeight, const int walkable
 
 
 void	rcFilterAlignmentSpans( rcContext* ctx, rcHeightfield& solid );
-void	rcFilterUnderFloorObjectSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid );
-void	rcMarkTerrainWalkableUnderFloorSpans( rcContext* ctx, rcHeightfield& solid );
+void	rcFilterUnderFloorObjectSpans( rcContext* ctx, rcHeightfield& solid );
+void	rcMarkTerrainWalkableUnderFloorSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid );
 void	rcFilterUnwalkableUnderFloorObjectInsideSpans( rcContext* ctx, rcHeightfield& solid );
 void	rcMarkTerrainUnderFloorObjectSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid );
 void	rcMarkObjectLedgeSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid );
 void	rcMarkExpandObjectLedgeSpans( rcContext* ctx, const int walkableHeight, const int walkableClimb, rcHeightfield& solid );
 void	rcFilterSpans( rcContext* ctx, const int walkableHeight, const int walkableClimb, rcHeightfield& solid );
 
+void	rcMarkSideLedgeSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid );
 
 void	rcMarkWalkableLowHangingObstacles( rcContext* ctx, const int walkableClimb, rcHeightfield& solid );
-void	rcFilterUnwalkableLowHeightSpans( rcContext* ctx, const int walkableHeight, const int walkableClimb, rcHeightfield& solid );
+void	rcFilterUnwalkableLowHeightSpans( rcContext* ctx, const int walkableHeight, rcHeightfield& solid );
 void	rcFilterUnwalkableLedgeSpans( rcContext* ctx, const int walkableHeight, const int walkableClimb, rcHeightfield& solid );
 void	rcFilterUnwalkableAreaSpans( rcContext* ctx, const unsigned char area, rcHeightfield& solid );
 
@@ -1266,6 +1340,10 @@ void	rcFilterUnwalkableAreaSpans( rcContext* ctx, const unsigned char area, rcHe
 void	rcTest( const int walkableHeight, const int walkableClimb, rcHeightfield& solid );
 #endif // MODIFY_VOXEL_FLAG
 //////////////////////////////////////////////////////////////////////////
+
+#ifdef MODIFY_OFF_MESH_CONNECTION
+bool	rcIsOverlapBounds2D( const float* vertexPoint, const float* bmin, const float* bmax );
+#endif // MODIFY_OFF_MESH_CONNECTION
 
 #endif // RECAST_H
 

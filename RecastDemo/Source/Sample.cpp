@@ -30,6 +30,7 @@
 #include "imgui.h"
 #include "SDL.h"
 #include "SDL_opengl.h"
+#include "DetourCommon.h"
 
 #ifdef WIN32
 #	define snprintf _snprintf
@@ -126,9 +127,9 @@ void Sample::resetCommonSettings()
 	m_agentHeight			= 0.4f;
 	m_agentRadius			= 0.0f;
 	m_agentMaxClimb			= 0.1f;
-	m_agentMaxSlope			= 60.0f;
-	m_regionMinSize			= 4.0f;//4.0f;
-	m_regionMergeSize		= 100.0f;//20.0f;
+	m_agentMaxSlope			= 80.0f;
+	m_regionMinSize			= 4.0f;
+	m_regionMergeSize		= 100.0f;
 	m_monotonePartitioning	= false;
 	m_edgeMaxLen			= 0.0f;
 	m_edgeMaxError			= 1.3f;
@@ -260,102 +261,129 @@ void Sample::renderOverlayToolStates(double* proj, double* model, int* view)
 
 #ifdef MODIFY_OFF_MESH_CONNECTION
 #include <vector>
-void	Sample::rcGenerateOffMeshConnection( const rcPolyMesh& mesh, InputGeom& geom )
+void	Sample::rcGenerateJumpableMeshConnection( const rcPolyMesh& mesh, const float walkableHeight, const float walkableClimb, InputGeom& geom )
 {
 	//////////////////////////////////////////////////////////////////////////
-	// temporary
-	struct _pos
+	geom.tableJumpMeshConnection.clear();
+	geom.tableJumpMeshConnection.reserve( mesh.npolys*(mesh.npolys-1) );
+	geom.jumpMeshConnectionCount = 0;
+
+	struct MeshPosition
 	{
-		float x;
-		float y;
-		float z;
-		_pos() : x( 0 ), y( 0 ), z( 0 )	{}
+		float x, y, z;
+		int vertCount;
+		float bmin[3];
+		float bmax[3];
+		float verts[DT_VERTS_PER_POLYGON*3];
+		MeshPosition() : x( 0 ), y( 0 ), z( 0 ), vertCount( 0 )	{}
 	};
 
-	std::vector<_pos>	tablePos;
-	//////////////////////////////////////////////////////////////////////////
+	std::vector<MeshPosition>	tableMeshPosition;
+	tableMeshPosition.resize( mesh.npolys );
+
 	for( int nth = 0; nth < mesh.npolys; ++nth ) {
+		//////////////////////////////////////////////////////////////////////////
 		unsigned short* p = &mesh.polys[nth*2*DT_VERTS_PER_POLYGON];
-		int vertCount = 0;
+		MeshPosition pos;
 		for( int i = 0; i < DT_VERTS_PER_POLYGON; ++i ) {
 			if( p[i] == RC_MESH_NULL_IDX ) {
 				break;
 			}
-			++vertCount;
+			++pos.vertCount;
 		}
-
-		float verts[DT_VERTS_PER_POLYGON*3], bmin[3], bmax[3];
-		const unsigned short* va = &mesh.verts[p[0]*3];
-
-		bmin[0] = bmax[0] = verts[0] = mesh.bmin[0] + (va[0] * mesh.cs);
-		bmin[1] = bmax[1] = verts[1] = mesh.bmin[1] + (va[1] * mesh.ch);
-		bmin[2] = bmax[2] = verts[2] = mesh.bmin[2] + (va[2] * mesh.cs);
-
-		for( int i = 1; i < vertCount; ++i ) {
-			va = &mesh.verts[p[i]*3];
-			verts[i*3+0] = mesh.bmin[0] + (va[0] * mesh.cs);
-			verts[i*3+1] = mesh.bmin[1] + (va[1] * mesh.ch);
-			verts[i*3+2] = mesh.bmin[2] + (va[2] * mesh.cs);
-
-			bmin[0] = rcMin( bmin[0], verts[i*3+0] );
-			bmin[1] = rcMin( bmin[1], verts[i*3+1] );
-			bmin[2] = rcMin( bmin[2], verts[i*3+2] );
-
-			bmax[0] = rcMax( bmax[0], verts[i*3+0] );
-			bmax[1] = rcMax( bmax[1], verts[i*3+1] );
-			bmax[2] = rcMax( bmax[2], verts[i*3+2] );
-		}
+		//////////////////////////////////////////////////////////////////////////
 
 		//////////////////////////////////////////////////////////////////////////
-		const float dist = rcSqrt( (bmax[0] - bmin[0]) + (bmax[2] - bmin[2]) );
+		const unsigned short* va = &mesh.verts[p[0]*3];
+		pos.bmin[0] = pos.bmax[0] = pos.verts[0] = mesh.bmin[0] + (va[0] * mesh.cs);
+		pos.bmin[1] = pos.bmax[1] = pos.verts[1] = mesh.bmin[1] + (va[1] * mesh.ch);
+		pos.bmin[2] = pos.bmax[2] = pos.verts[2] = mesh.bmin[2] + (va[2] * mesh.cs);
+
+		for( int i = 1; i < pos.vertCount; ++i ) {
+			va = &mesh.verts[p[i]*3];
+			pos.verts[i*3+0] = mesh.bmin[0] + (va[0] * mesh.cs);
+			pos.verts[i*3+1] = mesh.bmin[1] + (va[1] * mesh.ch);
+			pos.verts[i*3+2] = mesh.bmin[2] + (va[2] * mesh.cs);
+
+			pos.bmin[0] = rcMin( pos.bmin[0], pos.verts[i*3+0] );
+			pos.bmin[1] = rcMin( pos.bmin[1], pos.verts[i*3+1] );
+			pos.bmin[2] = rcMin( pos.bmin[2], pos.verts[i*3+2] );
+
+			pos.bmax[0] = rcMax( pos.bmax[0], pos.verts[i*3+0] );
+			pos.bmax[1] = rcMax( pos.bmax[1], pos.verts[i*3+1] );
+			pos.bmax[2] = rcMax( pos.bmax[2], pos.verts[i*3+2] );
+		}
 		//////////////////////////////////////////////////////////////////////////
 
 		//////////////////////////////////////////////////////////////////////////
 		float center[3] = { 0 };
-		for( int i = 0; i < vertCount; ++i ) {
-			center[0] += verts[i*3+0];
-			center[1] += verts[i*3+1];
-			center[2] += verts[i*3+2];
+		for( int i = 0; i < pos.vertCount; ++i ) {
+			center[0] += pos.verts[i*3+0];
+			center[1] += pos.verts[i*3+1];
+			center[2] += pos.verts[i*3+2];
 		}
-		const float divide = 1.0f / vertCount;
-		_pos pos;
+		const float divide = 1.0f / pos.vertCount;
 		pos.x = center[0] * divide;
 		pos.y = center[1] * divide;
 		pos.z = center[2] * divide;
-		//////////////////////////////////////////////////////////////////////////
-
-		//////////////////////////////////////////////////////////////////////////
-		// temporary
-		tablePos.push_back( pos );
+		
+		tableMeshPosition.at( nth ) = pos;
 		//////////////////////////////////////////////////////////////////////////
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	// temporary
-	for( unsigned int nth = 0; nth < tablePos.size(); ++nth ) {
-		const _pos src = tablePos.at( nth );
-		for( unsigned i = 0; i < tablePos.size(); ++i ) {
+	for( unsigned int nth = 0; nth < tableMeshPosition.size(); ++nth ) {
+		const MeshPosition src = tableMeshPosition.at( nth );
+		for( unsigned i = 0; i < tableMeshPosition.size(); ++i ) {
 			if( i == nth ) {
 				continue;
 			}
-			const _pos dest = tablePos.at( i );
-			if( 0.1f < rcAbs( src.y - dest.y ) ) {
-				// check distance
-				//////////////////////////////////////////////////////////////////////////
-				float _src[3], _dest[3];
-				_src[0] = src.x;
-				_src[1] = src.y;
-				_src[2] = src.z;
+			const MeshPosition dest = tableMeshPosition.at( i );
 
-				_dest[0] = dest.x;
-				_dest[1] = dest.y;
-				_dest[2] = dest.z;
-				//////////////////////////////////////////////////////////////////////////
-
-				//////////////////////////////////////////////////////////////////////////
-				geom.addOffMeshConnection( _src, _dest, 0.01f, 0 );
-				//////////////////////////////////////////////////////////////////////////
+			//////////////////////////////////////////////////////////////////////////
+			// over height?
+			if( rcAbs( src.y - dest.y ) <= walkableClimb || walkableHeight < ( dest.y - src.y ) ) {
+				continue;
 			}
+			//////////////////////////////////////////////////////////////////////////
+			//////////////////////////////////////////////////////////////////////////
+			// in bound?
+// 			if( dtCompleteOverlapBounds2D( src.bmin, src.bmax, dest.bmin, dest.bmax ) ) {
+// 				continue;
+// 			}
+
+			bool overlap = false;
+			for( int nv = 0; nv < src.vertCount; ++nv ) {
+				if( rcIsOverlapBounds2D( &src.verts[nv*3], dest.bmin, dest.bmax ) ) {
+					overlap = true;
+					break;
+				}
+			}
+			if( !overlap ) {
+				continue;
+			}
+			//////////////////////////////////////////////////////////////////////////
+			//////////////////////////////////////////////////////////////////////////
+			// jump link?
+			const bool jumpLink = rcIsLinkableMeshFlag( mesh.flags[nth], mesh.flags[i] );
+			if( !jumpLink ) {
+				continue;
+			}
+			//////////////////////////////////////////////////////////////////////////
+			//////////////////////////////////////////////////////////////////////////
+			// is connected?
+			const bool connect = rcIsConnectedPoly( src.verts, src.vertCount, dest.verts, dest.vertCount );
+			if( connect ) {
+				continue;
+			}
+			//////////////////////////////////////////////////////////////////////////
+			
+			dtJumpMeshConnection jp;
+			jp.startPosition[0] = src.x;	jp.startPosition[1] = src.y;	jp.startPosition[2] = src.z;
+			jp.endPosition[0] = dest.x;		jp.endPosition[1] = dest.y;		jp.endPosition[2] = dest.z;
+
+			geom.tableJumpMeshConnection.push_back( jp );
+			++geom.jumpMeshConnectionCount;
 		}
 	}
 	//////////////////////////////////////////////////////////////////////////

@@ -429,6 +429,8 @@ public:
 
 	dtStatus	castRay( const dtPolyRef startPolyID, const float* startPos, const float* endPos, float& interpolationFactor, float* normal, dtPolyRef& endPolyID ) const;
 
+	dtStatus	findMovablePosition( const dtPolyRef startPolyID, const float* startPos, const float* endPos, dtPolyRef& resultPolyID, float* resultPosition, float* normal ) const;
+
 	dtStatus	getCorrectPolyHeight( const dtPolyRef polyID, const float* pos, float& height ) const;
 	// MIRCHANG
 	//////////////////////////////////////////////////////////////////////////

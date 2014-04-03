@@ -193,7 +193,11 @@ void duDebugDrawHeightfieldWalkable(duDebugDraw* dd, const rcHeightfield& hf)
 			const rcSpan* s = hf.spans[x + y*w];
 			while (s)
 			{
-				if (s->area == RC_TERRAIN_WALKABLE_AREA)
+#ifdef MODIFY_VOXEL_FLAG
+				if( rcIsWalkableArea(s->area) )
+#else // MODIFY_VOXEL_FLAG
+				if (s->area == RC_WALKABLE_AREA)
+#endif // MODIFY_VOXEL_FLAG
 					fcol[0] = duRGBA(64,128,160,255);
 				else if (s->area == RC_NULL_AREA)
 					fcol[0] = duRGBA(64,64,64,255);
@@ -231,7 +235,11 @@ void duDebugDrawCompactHeightfieldSolid(duDebugDraw* dd, const rcCompactHeightfi
 				const rcCompactSpan& s = chf.spans[i];
 
 				unsigned int color;
-				if (chf.areas[i] == RC_TERRAIN_WALKABLE_AREA)
+#ifdef MODIFY_VOXEL_FLAG
+				if( rcIsWalkableArea(chf.areas[i]) )
+#else // MODIFY_VOXEL_FLAG
+				if (chf.areas[i] == RC_WALKABLE_AREA)
+#endif // MODIFY_VOXEL_FLAG
 					color = duRGBA(0,192,255,64);
 				else if (chf.areas[i] == RC_NULL_AREA)
 					color = duRGBA(0,0,0,64);
@@ -398,7 +406,11 @@ void duDebugDrawHeightfieldLayer(duDebugDraw* dd, const struct rcHeightfieldLaye
 			const unsigned char area = layer.areas[lidx];
 			
 			unsigned int col;
-			if (area == RC_TERRAIN_WALKABLE_AREA)
+#ifdef MODIFY_VOXEL_FLAG
+			if( rcIsWalkableArea(area) )
+#else // MODIFY_VOXEL_FLAG
+			if (area == RC_WALKABLE_AREA)
+#endif // MODIFY_VOXEL_FLAG
 				col = duLerpCol(color, duRGBA(0,192,255,64), 32);
 			else if (area == RC_NULL_AREA)
 				col = duLerpCol(color, duRGBA(0,0,0,64), 32);
@@ -868,7 +880,7 @@ void duDebugDrawPolyMesh(duDebugDraw* dd, const struct rcPolyMesh& mesh)
 		const unsigned short* p = &mesh.polys[i*nvp*2];
 		
 		unsigned int color;
-		if (mesh.areas[i] == RC_TERRAIN_WALKABLE_AREA)
+		if( rcCanMovableArea( mesh.areas[i] ) )
 			color = duRGBA(0,192,255,64);
 		else if (mesh.areas[i] == RC_NULL_AREA)
 			color = duRGBA(0,0,0,64);
