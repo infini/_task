@@ -631,6 +631,7 @@ public:
 	const dtMeshTile*	getTilesAt( const int x, const int y ) const;
 	const float*	getOrigin() const	{	return m_orig;	}
 	bool	isConnectedPoly( const dtPolyRef startRef, const dtPolyRef endRef ) const;
+	float	getInterpolationFactor( const dtPolyRef navMeshID, const float* position ) const;
 	// MIRCHANG
 	//////////////////////////////////////////////////////////////////////////
 

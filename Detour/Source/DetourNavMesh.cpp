@@ -1631,6 +1631,40 @@ bool	dtNavMesh::isConnectedPoly( const dtPolyRef startRef, const dtPolyRef endRe
 	return false;
 }
 
+float	dtNavMesh::getInterpolationFactor( const dtPolyRef navMeshID, const float* position ) const
+{
+	const dtMeshTile* tile = 0;
+	const dtPoly* poly = 0;
+	getTileAndPolyByRefUnsafe( navMeshID, &tile, &poly );
+
+	const unsigned int ip = static_cast<unsigned int>( poly - tile->polys );
+	const dtPolyDetail* pd = &tile->detailMeshes[ip];
+	const int triCount = 3;
+	for( int nth = 0; nth < pd->triCount; ++nth ) {
+		const unsigned char* t = &tile->detailTris[(pd->triBase+nth)*4];
+		float verts[DT_VERTS_PER_POLYGON*triCount] = { 0 };
+		for( int i = 0; i < triCount; ++i ) {
+			if( t[i] < poly->vertCount ) {
+				dtVcopy( &verts[i*triCount], &tile->verts[poly->verts[t[i]]*triCount] );
+			}
+			else {
+				dtVcopy( &verts[i*triCount], &tile->detailVerts[(pd->vertBase+(t[i]-poly->vertCount))*triCount] );
+			}
+		}
+		if( dtPointInPolygon( position, verts, triCount ) ) {
+			float e0[3], e1[3], norm[3];
+			dtVsub(e0, &verts[3], &verts[0]);
+			dtVsub(e1, &verts[6], &verts[0]);
+			dtVcross(norm, e0, e1);
+			dtVnormalize(norm);
+
+			return dtClamp( norm[1], 0.1f, 1.0f );
+		}
+	}
+
+	return 0.0f;
+}
+
 void	dtNavMesh::connectJumpableMeshLinks( dtMeshTile* tile, const int jumpMeshConnectionCount )
 {
 	if( tile == NULL ) {

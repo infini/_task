@@ -3412,7 +3412,7 @@ dtPolyRef	dtNavMeshQuery::queryCorrectPolygonsInTile( const dtMeshTile* tile, co
 	unsigned short highest = 0;
 	dtPolyRef meshID = 0;
 	while( node < end ) {
-		const bool overlap = dtOverlapQuantBounds2D(bmin, bmax, node->bmin, node->bmax);
+		const bool overlap = /*dtOverlapQuantBounds*/dtOverlapQuantBounds2D(bmin, bmax, node->bmin, node->bmax);
 		const bool isLeafNode = node->i >= 0;
 
 		if( isLeafNode && overlap ) {
@@ -3424,9 +3424,10 @@ dtPolyRef	dtNavMeshQuery::queryCorrectPolygonsInTile( const dtMeshTile* tile, co
 			for( int nth = 0; nth < static_cast<int>( _poly->vertCount ); ++nth ) {
 				dtVcopy( &verts[nth*3], &_tile->verts[_poly->verts[nth]*3] );
 			}
-			if( dtPointInPolygon( pos, verts, static_cast<int>( _poly->vertCount ) ) && node->bmin[1] < bmax[1] && highest < node->bmax[1] ) {
+			if( dtPointInPolygon( pos, verts, static_cast<int>( _poly->vertCount ) ) && node->bmin[1] <= bmax[1] && highest <= node->bmax[1] ) {
 				meshID = pid;
 				highest = node->bmax[1];
+				//return pid;
 			}
 		}
 
@@ -3704,6 +3705,12 @@ dtStatus	dtNavMeshQuery::findMovablePosition( const dtPolyRef startPolyID, const
 	memset( normal, 0, sizeof(float)*3 );
 	resultPolyID = 0;
 
+// 	const float interpolationFactor = m_nav->getInterpolationFactor( startPolyID, startPos );
+ 	float interpolationEndPos[3] = { 0 };
+	//dtVlerp( interpolationEndPos, startPos, endPos, interpolationFactor );
+	dtVcopy( interpolationEndPos, endPos );
+	interpolationEndPos[1] = endPos[1];
+
 	dtPolyRef currentPolyID( startPolyID );
 	do {
 		const dtMeshTile* tile = 0;
@@ -3716,15 +3723,15 @@ dtStatus	dtNavMeshQuery::findMovablePosition( const dtPolyRef startPolyID, const
 			dtVcopy( &verts[i*3], &tile->verts[poly->verts[i]*3] );
 		}
 
-		if( dtPointInPolygon( endPos, verts, vertCount ) ) {
+		if( dtPointInPolygon( interpolationEndPos, verts, vertCount ) ) {
 			resultPolyID = currentPolyID;
-			dtVcopy( resultPosition, endPos );
+			dtVcopy( resultPosition, interpolationEndPos );
 			return DT_SUCCESS;
 		}
 
 		int segMin = -1, segMax = -1;
-		if( !_dtIntersectSegmentPoly2D( startPos, endPos, verts, vertCount, segMin, segMax, resultPosition ) ) {
-			return resultPolyID != 0 ? DT_SUCCESS : DT_FAILURE;
+		if( !_dtIntersectSegmentPoly2D( startPos, interpolationEndPos, verts, vertCount, segMin, segMax, resultPosition ) ) {
+			return resultPolyID != 0 ? DT_SUCCESS | DT_COLLISION : DT_FAILURE;
 		}
 
 		resultPolyID = currentPolyID;
@@ -3743,29 +3750,30 @@ dtStatus	dtNavMeshQuery::findMovablePosition( const dtPolyRef startPolyID, const
 			}
 		}
 
-		if( nextPolyID == 0 && dtIsJumpableMeshType( poly->getType() ) ) {
-				for( unsigned int i = poly->jumpMeshFirstLink; i != DT_NULL_LINK; i = tile->jumpMeshLink[i].next ) {
-					const dtJumpMeshLink* jumpMeshLink = &tile->jumpMeshLink[i];
-
-				const dtMeshTile* next_tile = 0;
-				const dtPoly* next_poly = 0;
-				m_nav->getTileAndPolyByRefUnsafe( jumpMeshLink->ref, &next_tile, &next_poly );
-
-				float next_verts[DT_VERTS_PER_POLYGON*3] = {0};
-				const int next_vertCount = static_cast<int>( next_poly->vertCount );
-					for( int i = 0; i < next_vertCount; ++i ) {
-					dtVcopy( &next_verts[i*3], &next_tile->verts[next_poly->verts[i]*3] );
-				}
-					if( dtPointInPolygon( endPos, next_verts, next_vertCount ) ) {
-					float height = 0;
-						getCorrectPolyHeight( jumpMeshLink->ref, endPos, height );
-					if( height <= endPos[1] ) {
-							nextPolyID = jumpMeshLink->ref;
-							break;
-						}
-					}
-			}
-		}
+// 		if( nextPolyID == 0 && dtIsJumpableMeshType( poly->getType() ) ) {
+// 			for( unsigned int i = poly->jumpMeshFirstLink; i != DT_NULL_LINK; i = tile->jumpMeshLink[i].next ) {
+// 				const dtJumpMeshLink* jumpMeshLink = &tile->jumpMeshLink[i];
+// 
+// 				const dtMeshTile* next_tile = 0;
+// 				const dtPoly* next_poly = 0;
+// 				m_nav->getTileAndPolyByRefUnsafe( jumpMeshLink->ref, &next_tile, &next_poly );
+// 
+// 				float next_verts[DT_VERTS_PER_POLYGON*3] = {0};
+// 				const int next_vertCount = static_cast<int>( next_poly->vertCount );
+// 				for( int i = 0; i < next_vertCount; ++i ) {
+// 					dtVcopy( &next_verts[i*3], &next_tile->verts[next_poly->verts[i]*3] );
+// 				}
+// 
+// 				if( dtPointInPolygon( interpolationEndPos, next_verts, next_vertCount ) ) {
+// 					float height = 0;
+// 					getCorrectPolyHeight( jumpMeshLink->ref, interpolationEndPos, height );
+// 					if( height <= interpolationEndPos[1] ) {
+// 						nextPolyID = jumpMeshLink->ref;
+// 						break;
+// 					}
+// 				}
+// 			}
+// 		}
 
 		if( nextPolyID == 0 ) {
 			const int a = segMax;
@@ -3784,7 +3792,7 @@ dtStatus	dtNavMeshQuery::findMovablePosition( const dtPolyRef startPolyID, const
 
 	} while ( currentPolyID != 0 );
 
-	return resultPolyID != 0 ? DT_SUCCESS : DT_FAILURE;
+	return resultPolyID != 0 ? DT_SUCCESS | DT_COLLISION : DT_FAILURE;
 }
 
 dtStatus	dtNavMeshQuery::getCorrectPolyHeight( const dtPolyRef polyID, const float* pos, float& height ) const
