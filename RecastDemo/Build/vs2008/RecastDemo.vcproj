@@ -21,6 +21,7 @@
 			OutputDirectory="..\..\Bin"
 			IntermediateDirectory="obj\Debug\RecastDemo"
 			ConfigurationType="1"
+			InheritedPropertySheets="C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Language.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Config_Debug.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Target_StaticLinkedExecutable.vsprops"
 			CharacterSet="2"
 			>
 			<Tool
@@ -41,7 +42,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\..\Include;..\..\Contrib;..\..\Contrib\fastlz;..\..\..\DebugUtils\Include;..\..\..\Detour\Include;..\..\..\DetourCrowd\Include;..\..\..\DetourTileCache\Include;..\..\..\Recast\Include;..\..\Contrib\SDL\include;..\..\Contrib\Gamebryo\include;..\..\..\Common"
+				AdditionalIncludeDirectories="..\..\Include;..\..\Contrib;..\..\Contrib\fastlz;..\..\..\DebugUtils\Include;..\..\..\Detour\Include;..\..\..\DetourCrowd\Include;..\..\..\DetourTileCache\Include;..\..\..\Recast\Include;..\..\Contrib\SDL\include"
 				PreprocessorDefinitions="DEBUG;WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS"
 				MinimalRebuild="true"
 				ExceptionHandling="0"
@@ -104,6 +105,7 @@
 			OutputDirectory="..\..\Bin"
 			IntermediateDirectory="obj\Release\RecastDemo"
 			ConfigurationType="1"
+			InheritedPropertySheets="C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Language.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Config_Release.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Target_StaticLinkedExecutable.vsprops"
 			CharacterSet="2"
 			>
 			<Tool
@@ -123,8 +125,8 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				Optimization="3"
-				AdditionalIncludeDirectories="..\..\Include;..\..\Contrib;..\..\Contrib\fastlz;..\..\..\DebugUtils\Include;..\..\..\Detour\Include;..\..\..\DetourCrowd\Include;..\..\..\DetourTileCache\Include;..\..\..\Recast\Include;..\..\Contrib\SDL\include;..\..\Contrib\Gamebryo\include;..\..\..\Common"
+				Optimization="2"
+				AdditionalIncludeDirectories="..\..\Include;..\..\Contrib;..\..\Contrib\fastlz;..\..\..\DebugUtils\Include;..\..\..\Detour\Include;..\..\..\DetourCrowd\Include;..\..\..\DetourTileCache\Include;..\..\..\Recast\Include;..\..\Contrib\SDL\include"
 				PreprocessorDefinitions="NDEBUG;WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS"
 				StringPooling="true"
 				ExceptionHandling="0"

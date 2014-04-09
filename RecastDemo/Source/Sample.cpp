@@ -31,6 +31,7 @@
 #include "SDL.h"
 #include "SDL_opengl.h"
 #include "DetourCommon.h"
+#include "DetourCoordinates.h"
 
 #ifdef WIN32
 #	define snprintf _snprintf
@@ -94,9 +95,9 @@ void Sample::handleRender()
 	duDebugDrawTriMesh(&dd, m_geom->getMesh()->getVerts(), m_geom->getMesh()->getVertCount(),
 					   m_geom->getMesh()->getTris(), m_geom->getMesh()->getNormals(), m_geom->getMesh()->getTriCount(), 0, 1.0f);
 	// Draw bounds
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
-	duDebugDrawBoxWire(&dd, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], duRGBA(255,255,255,128), 1.0f);
+	const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+	const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
+	duDebugDrawBoxWire(&dd, bmin.X(),bmin.Y(),bmin.Z(), bmax.X(),bmax.Y(),bmax.Z(), duRGBA(255,255,255,128), 1.0f);
 }
 
 void Sample::handleRenderOverlay(double* /*proj*/, double* /*model*/, int* /*view*/)
@@ -108,16 +109,16 @@ void Sample::handleMeshChanged(InputGeom* geom)
 	m_geom = geom;
 }
 
-const float* Sample::getBoundsMin()
+const dtCoordinates* Sample::getBoundsMin()
 {
 	if (!m_geom) return 0;
-	return m_geom->getMeshBoundsMin();
+	return &m_geom->getMeshBoundsMin();
 }
 
-const float* Sample::getBoundsMax()
+const dtCoordinates* Sample::getBoundsMax()
 {
 	if (!m_geom) return 0;
-	return m_geom->getMeshBoundsMax();
+	return &m_geom->getMeshBoundsMax();
 }
 
 void Sample::resetCommonSettings()
@@ -146,8 +147,8 @@ void Sample::handleCommonSettings()
 	
 	if (m_geom)
 	{
-		const float* bmin = m_geom->getMeshBoundsMin();
-		const float* bmax = m_geom->getMeshBoundsMax();
+		const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+		const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
 		int gw = 0, gh = 0;
 		rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
 		char text[64];
@@ -183,7 +184,7 @@ void Sample::handleCommonSettings()
 	imguiSeparator();
 }
 
-void Sample::handleClick(const float* s, const float* p, bool shift)
+void Sample::handleClick(const dtCoordinates& s, const dtCoordinates& p, bool shift)
 {
 	if (m_tool)
 		m_tool->handleClick(s, p, shift);
@@ -270,12 +271,12 @@ void	Sample::rcGenerateJumpableMeshConnection( const rcPolyMesh& mesh, const flo
 
 	struct MeshPosition
 	{
-		float x, y, z;
 		int vertCount;
-		float bmin[3];
-		float bmax[3];
-		float verts[DT_VERTS_PER_POLYGON*3];
-		MeshPosition() : x( 0 ), y( 0 ), z( 0 ), vertCount( 0 )	{}
+		dtCoordinates pos;
+		dtCoordinates bmin;
+		dtCoordinates bmax;
+		dtCoordinates verts[DT_VERTS_PER_POLYGON];
+		MeshPosition() : vertCount( 0 ) {}
 	};
 
 	std::vector<MeshPosition>	tableMeshPosition;
@@ -284,50 +285,48 @@ void	Sample::rcGenerateJumpableMeshConnection( const rcPolyMesh& mesh, const flo
 	for( int nth = 0; nth < mesh.npolys; ++nth ) {
 		//////////////////////////////////////////////////////////////////////////
 		unsigned short* p = &mesh.polys[nth*2*DT_VERTS_PER_POLYGON];
-		MeshPosition pos;
+		MeshPosition meshPosition;
 		for( int i = 0; i < DT_VERTS_PER_POLYGON; ++i ) {
 			if( p[i] == RC_MESH_NULL_IDX ) {
 				break;
 			}
-			++pos.vertCount;
+			++meshPosition.vertCount;
 		}
 		//////////////////////////////////////////////////////////////////////////
 
 		//////////////////////////////////////////////////////////////////////////
 		const unsigned short* va = &mesh.verts[p[0]*3];
-		pos.bmin[0] = pos.bmax[0] = pos.verts[0] = mesh.bmin[0] + (va[0] * mesh.cs);
-		pos.bmin[1] = pos.bmax[1] = pos.verts[1] = mesh.bmin[1] + (va[1] * mesh.ch);
-		pos.bmin[2] = pos.bmax[2] = pos.verts[2] = mesh.bmin[2] + (va[2] * mesh.cs);
+		meshPosition.bmin = dtCoordinates( mesh.bmin.X() + (va[0] * mesh.cs), mesh.bmin.Y() + (va[1] * mesh.ch), mesh.bmin.Z() + (va[2] * mesh.cs) );
+		meshPosition.bmax = dtCoordinates( mesh.bmin.X() + (va[0] * mesh.cs), mesh.bmin.Y() + (va[1] * mesh.ch), mesh.bmin.Z() + (va[2] * mesh.cs) );
+		meshPosition.verts[0] = dtCoordinates( mesh.bmin.X() + (va[0] * mesh.cs), mesh.bmin.Y() + (va[1] * mesh.ch), mesh.bmin.Z() + (va[2] * mesh.cs) );
 
-		for( int i = 1; i < pos.vertCount; ++i ) {
+		for( int i = 1; i < meshPosition.vertCount; ++i ) {
 			va = &mesh.verts[p[i]*3];
-			pos.verts[i*3+0] = mesh.bmin[0] + (va[0] * mesh.cs);
-			pos.verts[i*3+1] = mesh.bmin[1] + (va[1] * mesh.ch);
-			pos.verts[i*3+2] = mesh.bmin[2] + (va[2] * mesh.cs);
+			meshPosition.verts[i] = dtCoordinates( mesh.bmin.X() + (va[0] * mesh.cs), mesh.bmin.Y() + (va[1] * mesh.ch), mesh.bmin.Z() + (va[2] * mesh.cs) );
 
-			pos.bmin[0] = rcMin( pos.bmin[0], pos.verts[i*3+0] );
-			pos.bmin[1] = rcMin( pos.bmin[1], pos.verts[i*3+1] );
-			pos.bmin[2] = rcMin( pos.bmin[2], pos.verts[i*3+2] );
+			meshPosition.bmin.SetX( rcMin( meshPosition.bmin.X(), meshPosition.verts[i].X() ) );
+			meshPosition.bmin.SetY( rcMin( meshPosition.bmin.Y(), meshPosition.verts[i].Y() ) );
+			meshPosition.bmin.SetZ( rcMin( meshPosition.bmin.Z(), meshPosition.verts[i].Z() ) );
 
-			pos.bmax[0] = rcMax( pos.bmax[0], pos.verts[i*3+0] );
-			pos.bmax[1] = rcMax( pos.bmax[1], pos.verts[i*3+1] );
-			pos.bmax[2] = rcMax( pos.bmax[2], pos.verts[i*3+2] );
+			meshPosition.bmax.SetX( rcMax( meshPosition.bmax.X(), meshPosition.verts[i].X() ) );
+			meshPosition.bmax.SetY( rcMax( meshPosition.bmax.Y(), meshPosition.verts[i].Y() ) );
+			meshPosition.bmax.SetZ( rcMax( meshPosition.bmax.Z(), meshPosition.verts[i].Z() ) );
 		}
 		//////////////////////////////////////////////////////////////////////////
 
 		//////////////////////////////////////////////////////////////////////////
-		float center[3] = { 0 };
-		for( int i = 0; i < pos.vertCount; ++i ) {
-			center[0] += pos.verts[i*3+0];
-			center[1] += pos.verts[i*3+1];
-			center[2] += pos.verts[i*3+2];
+		dtCoordinates center;
+		for( int i = 0; i < meshPosition.vertCount; ++i ) {
+			center.SetX( center.X() + meshPosition.verts[i].X() );
+			center.SetY( center.Y() + meshPosition.verts[i].Y() );
+			center.SetZ( center.Z() + meshPosition.verts[i].Z() );
 		}
-		const float divide = 1.0f / pos.vertCount;
-		pos.x = center[0] * divide;
-		pos.y = center[1] * divide;
-		pos.z = center[2] * divide;
+		const float divide = 1.0f / meshPosition.vertCount;
+		meshPosition.pos.SetX( center.X() * divide );
+		meshPosition.pos.SetY( center.Y() * divide );
+		meshPosition.pos.SetZ( center.Z() * divide );
 		
-		tableMeshPosition.at( nth ) = pos;
+		tableMeshPosition.at( nth ) = meshPosition;
 		//////////////////////////////////////////////////////////////////////////
 	}
 
@@ -342,7 +341,7 @@ void	Sample::rcGenerateJumpableMeshConnection( const rcPolyMesh& mesh, const flo
 
 			//////////////////////////////////////////////////////////////////////////
 			// over height?
-			if( rcAbs( src.y - dest.y ) <= walkableClimb || walkableHeight < ( dest.y - src.y ) ) {
+			if( rcAbs( src.pos.Y() - dest.pos.Y() ) <= walkableClimb || walkableHeight < ( dest.pos.Y() - src.pos.Y() ) ) {
 				continue;
 			}
 			//////////////////////////////////////////////////////////////////////////
@@ -354,7 +353,7 @@ void	Sample::rcGenerateJumpableMeshConnection( const rcPolyMesh& mesh, const flo
 
 			bool overlap = false;
 			for( int nv = 0; nv < src.vertCount; ++nv ) {
-				if( rcIsOverlapBounds2D( &src.verts[nv*3], dest.bmin, dest.bmax ) ) {
+				if( rcIsOverlapBounds2D( src.verts[nv], dest.bmin, dest.bmax ) ) {
 					overlap = true;
 					break;
 				}
@@ -379,8 +378,8 @@ void	Sample::rcGenerateJumpableMeshConnection( const rcPolyMesh& mesh, const flo
 			//////////////////////////////////////////////////////////////////////////
 			
 			dtJumpMeshConnection jp;
-			jp.startPosition[0] = src.x;	jp.startPosition[1] = src.y;	jp.startPosition[2] = src.z;
-			jp.endPosition[0] = dest.x;		jp.endPosition[1] = dest.y;		jp.endPosition[2] = dest.z;
+			jp.startPosition = src.pos;
+			jp.endPosition = dest.pos;
 
 			geom.tableJumpMeshConnection.push_back( jp );
 			++geom.jumpMeshConnectionCount;

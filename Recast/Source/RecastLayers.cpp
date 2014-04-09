@@ -459,13 +459,13 @@ bool rcBuildHeightfieldLayers(rcContext* ctx, rcCompactHeightfield& chf,
 	const int lh = h - borderSize*2;
 
 	// Build contracted bbox for layers.
-	float bmin[3], bmax[3];
+	dtCoordinates bmin, bmax;
 	rcVcopy(bmin, chf.bmin);
 	rcVcopy(bmax, chf.bmax);
-	bmin[0] += borderSize*chf.cs;
-	bmin[2] += borderSize*chf.cs;
-	bmax[0] -= borderSize*chf.cs;
-	bmax[2] -= borderSize*chf.cs;
+	bmin.SetX( bmin.X() + borderSize*chf.cs );
+	bmin.SetZ( bmin.Z() + borderSize*chf.cs );
+	bmax.SetX( bmax.X() - borderSize*chf.cs );
+	bmax.SetZ( bmax.Z() - borderSize*chf.cs );
 	
 	lset.nlayers = (int)layerId;
 	
@@ -532,8 +532,8 @@ bool rcBuildHeightfieldLayers(rcContext* ctx, rcCompactHeightfield& chf,
 		// Adjust the bbox to fit the heighfield.
 		rcVcopy(layer->bmin, bmin);
 		rcVcopy(layer->bmax, bmax);
-		layer->bmin[1] = bmin[1] + hmin*chf.ch;
-		layer->bmax[1] = bmin[1] + hmax*chf.ch;
+		layer->bmin.SetY( bmin.Y() + hmin*chf.ch );
+		layer->bmax.SetY( bmin.Y() + hmax*chf.ch );
 		layer->hmin = hmin;
 		layer->hmax = hmax;
 

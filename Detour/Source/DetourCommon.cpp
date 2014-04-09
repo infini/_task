@@ -26,11 +26,11 @@ float dtSqrt(float x)
 	return dtMathSqrtf(x);
 }
 
-void dtClosestPtPointTriangle(float* closest, const float* p,
-							  const float* a, const float* b, const float* c)
+void dtClosestPtPointTriangle(dtCoordinates& closest, const dtCoordinates& p,
+							  const dtCoordinates& a, const dtCoordinates& b, const dtCoordinates& c)
 {
 	// Check if P in vertex region outside A
-	float ab[3], ac[3], ap[3];
+	dtCoordinates ab, ac, ap;
 	dtVsub(ab, b, a);
 	dtVsub(ac, c, a);
 	dtVsub(ap, p, a);
@@ -44,7 +44,7 @@ void dtClosestPtPointTriangle(float* closest, const float* p,
 	}
 	
 	// Check if P in vertex region outside B
-	float bp[3];
+	dtCoordinates bp;
 	dtVsub(bp, p, b);
 	float d3 = dtVdot(ab, bp);
 	float d4 = dtVdot(ac, bp);
@@ -61,14 +61,14 @@ void dtClosestPtPointTriangle(float* closest, const float* p,
 	{
 		// barycentric coordinates (1-v,v,0)
 		float v = d1 / (d1 - d3);
-		closest[0] = a[0] + v * ab[0];
-		closest[1] = a[1] + v * ab[1];
-		closest[2] = a[2] + v * ab[2];
+		closest.SetX( a.X() + v * ab.X() );
+		closest.SetY( a.Y() + v * ab.Y() );
+		closest.SetZ( a.Z() + v * ab.Z() );
 		return;
 	}
 	
 	// Check if P in vertex region outside C
-	float cp[3];
+	dtCoordinates cp;
 	dtVsub(cp, p, c);
 	float d5 = dtVdot(ab, cp);
 	float d6 = dtVdot(ac, cp);
@@ -85,9 +85,9 @@ void dtClosestPtPointTriangle(float* closest, const float* p,
 	{
 		// barycentric coordinates (1-w,0,w)
 		float w = d2 / (d2 - d6);
-		closest[0] = a[0] + w * ac[0];
-		closest[1] = a[1] + w * ac[1];
-		closest[2] = a[2] + w * ac[2];
+		closest.SetX( a.X() + w * ac.X() );
+		closest.SetY( a.Y() + w * ac.Y() );
+		closest.SetZ( a.Z() + w * ac.Z() );
 		return;
 	}
 	
@@ -97,9 +97,9 @@ void dtClosestPtPointTriangle(float* closest, const float* p,
 	{
 		// barycentric coordinates (0,1-w,w)
 		float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-		closest[0] = b[0] + w * (c[0] - b[0]);
-		closest[1] = b[1] + w * (c[1] - b[1]);
-		closest[2] = b[2] + w * (c[2] - b[2]);
+		closest.SetX( b.X() + w * (c.X() - b.X()) );
+		closest.SetY( b.Y() + w * (c.Y() - b.Y()) );
+		closest.SetZ( b.Z() + w * (c.Z() - b.Z()) );
 		return;
 	}
 	
@@ -107,13 +107,13 @@ void dtClosestPtPointTriangle(float* closest, const float* p,
 	float denom = 1.0f / (va + vb + vc);
 	float v = vb * denom;
 	float w = vc * denom;
-	closest[0] = a[0] + ab[0] * v + ac[0] * w;
-	closest[1] = a[1] + ab[1] * v + ac[1] * w;
-	closest[2] = a[2] + ab[2] * v + ac[2] * w;
+	closest.SetX( a.X() + ab.X() * v + ac.X() * w );
+	closest.SetY( a.Y() + ab.Y() * v + ac.Y() * w );
+	closest.SetZ( a.Z() + ab.Z() * v + ac.Z() * w );
 }
 
-bool dtIntersectSegmentPoly2D(const float* p0, const float* p1,
-							  const float* verts, int nverts,
+bool dtIntersectSegmentPoly2D(const dtCoordinates& p0, const dtCoordinates& p1,
+							  const dtCoordinates* verts, int nverts,
 							  float& tmin, float& tmax,
 							  int& segMin, int& segMax)
 {
@@ -124,14 +124,14 @@ bool dtIntersectSegmentPoly2D(const float* p0, const float* p1,
 	segMin = -1;
 	segMax = -1;
 	
-	float dir[3];
+	dtCoordinates dir;
 	dtVsub(dir, p1, p0);
 	
 	for (int i = 0, j = nverts-1; i < nverts; j=i++)
 	{
-		float edge[3], diff[3];
-		dtVsub(edge, &verts[i*3], &verts[j*3]);
-		dtVsub(diff, p0, &verts[j*3]);
+		dtCoordinates edge, diff;
+		dtVsub(edge, verts[i], verts[j]);
+		dtVsub(diff, p0, verts[j]);
 		const float n = dtVperp2D(edge, diff);
 		const float d = dtVperp2D(dir, edge);
 		if (fabsf(d) < EPS)
@@ -172,43 +172,37 @@ bool dtIntersectSegmentPoly2D(const float* p0, const float* p1,
 	return true;
 }
 
-float dtDistancePtSegSqr2D(const float* pt, const float* p, const float* q, float& t)
+float dtDistancePtSegSqr2D(const dtCoordinates& pt, const dtCoordinates& p, const dtCoordinates& q, float& t)
 {
-	float pqx = q[0] - p[0];
-	float pqz = q[2] - p[2];
-	float dx = pt[0] - p[0];
-	float dz = pt[2] - p[2];
+	const float pqx = q.X() - p.X();
+	const float pqz = q.Z() - p.Z();
+	float dx = pt.X() - p.X();
+	float dz = pt.Z() - p.Z();
 	float d = pqx*pqx + pqz*pqz;
 	t = pqx*dx + pqz*dz;
 	if (d > 0) t /= d;
 	if (t < 0) t = 0;
 	else if (t > 1) t = 1;
-	dx = p[0] + t*pqx - pt[0];
-	dz = p[2] + t*pqz - pt[2];
+	dx = p.X() + t*pqx - pt.X();
+	dz = p.Z() + t*pqz - pt.Z();
 	return dx*dx + dz*dz;
 }
 
-void dtCalcPolyCenter(float* tc, const unsigned short* idx, int nidx, const float* verts)
+void dtCalcPolyCenter(dtCoordinates& tc, const unsigned short* idx, int nidx, const dtCoordinates* verts)
 {
-	tc[0] = 0.0f;
-	tc[1] = 0.0f;
-	tc[2] = 0.0f;
+	tc = dtCoordinates();
 	for (int j = 0; j < nidx; ++j)
 	{
-		const float* v = &verts[idx[j]*3];
-		tc[0] += v[0];
-		tc[1] += v[1];
-		tc[2] += v[2];
+		const dtCoordinates v( verts[idx[j]] );
+		dtVadd( tc, tc, v );
 	}
 	const float s = 1.0f / nidx;
-	tc[0] *= s;
-	tc[1] *= s;
-	tc[2] *= s;
+	dtVscale( tc, tc, s );
 }
 
-bool dtClosestHeightPointTriangle(const float* p, const float* a, const float* b, const float* c, float& h)
+bool dtClosestHeightPointTriangle(const dtCoordinates& p, const dtCoordinates& a, const dtCoordinates& b, const dtCoordinates& c, float& h)
 {
-	float v0[3], v1[3], v2[3];
+	dtCoordinates v0, v1, v2;
 	dtVsub(v0, c,a);
 	dtVsub(v1, b,a);
 	dtVsub(v2, p,a);
@@ -231,7 +225,7 @@ bool dtClosestHeightPointTriangle(const float* p, const float* a, const float* b
 	// If point lies inside the triangle, return interpolated ycoord.
 	if (u >= -EPS && v >= -EPS && (u+v) <= 1+EPS)
 	{
-		h = a[1] + v0[1]*u + v1[1]*v;
+		h = a.Y() + v0.Y()*u + v1.Y()*v;
 		return true;
 	}
 	
@@ -241,24 +235,24 @@ bool dtClosestHeightPointTriangle(const float* p, const float* a, const float* b
 /// @par
 ///
 /// All points are projected onto the xz-plane, so the y-values are ignored.
-bool dtPointInPolygon(const float* pt, const float* verts, const int nverts)
+bool dtPointInPolygon(const dtCoordinates& pt, const dtCoordinates* verts, const int nverts)
 {
 	// TODO: Replace pnpoly with triArea2D tests?
 	int i, j;
 	bool c = false;
 	for (i = 0, j = nverts-1; i < nverts; j = i++)
 	{
-		const float* vi = &verts[i*3];
-		const float* vj = &verts[j*3];
-		const float t = (vj[0]-vi[0]) * (pt[2]-vi[2]) / (vj[2]-vi[2]) + vi[0];
-		if( ((vi[2] > pt[2]) != (vj[2] > pt[2])) && (pt[0] < t) ) {
+		const dtCoordinates vi( verts[i] );
+		const dtCoordinates vj( verts[j] );
+		const float t = (vj.X()-vi.X()) * (pt.Z()-vi.Z()) / (vj.Z()-vi.Z()) + vi.X();
+		if( ((vi.Z() > pt.Z()) != (vj.Z() > pt.Z())) && (pt.X() < t) ) {
 			c = !c;
 		}
 	}
 	return c;
 }
 
-bool dtDistancePtPolyEdgesSqr(const float* pt, const float* verts, const int nverts,
+bool dtDistancePtPolyEdgesSqr(const dtCoordinates& pt, const dtCoordinates* verts, const int nverts,
 							  float* ed, float* et)
 {
 	// TODO: Replace pnpoly with triArea2D tests?
@@ -266,23 +260,23 @@ bool dtDistancePtPolyEdgesSqr(const float* pt, const float* verts, const int nve
 	bool c = false;
 	for (i = 0, j = nverts-1; i < nverts; j = i++)
 	{
-		const float* vi = &verts[i*3];
-		const float* vj = &verts[j*3];
-		if (((vi[2] > pt[2]) != (vj[2] > pt[2])) &&
-			(pt[0] < (vj[0]-vi[0]) * (pt[2]-vi[2]) / (vj[2]-vi[2]) + vi[0]) )
+		const dtCoordinates vi( verts[i] );
+		const dtCoordinates vj( verts[j] );
+		if (((vi.Z() > pt.Z()) != (vj.Z() > pt.Z())) &&
+			(pt.X() < (vj.X()-vi.X()) * (pt.Z()-vi.Z()) / (vj.Z()-vi.Z()) + vi.X()) )
 			c = !c;
 		ed[j] = dtDistancePtSegSqr2D(pt, vj, vi, et[j]);
 	}
 	return c;
 }
 
-static void projectPoly(const float* axis, const float* poly, const int npoly,
+static void projectPoly(const dtCoordinates& axis, const dtCoordinates* poly, const int npoly,
 						float& rmin, float& rmax)
 {
-	rmin = rmax = dtVdot2D(axis, &poly[0]);
+	rmin = rmax = dtVdot2D(axis, poly[0]);
 	for (int i = 1; i < npoly; ++i)
 	{
-		const float d = dtVdot2D(axis, &poly[i*3]);
+		const float d = dtVdot2D(axis, poly[i]);
 		rmin = dtMin(rmin, d);
 		rmax = dtMax(rmax, d);
 	}
@@ -298,16 +292,16 @@ inline bool overlapRange(const float amin, const float amax,
 /// @par
 ///
 /// All vertices are projected onto the xz-plane, so the y-values are ignored.
-bool dtOverlapPolyPoly2D(const float* polya, const int npolya,
-						 const float* polyb, const int npolyb)
+bool dtOverlapPolyPoly2D(const dtCoordinates* polya, const int npolya,
+						 const dtCoordinates* polyb, const int npolyb)
 {
 	const float eps = 1e-4f;
 	
 	for (int i = 0, j = npolya-1; i < npolya; j=i++)
 	{
-		const float* va = &polya[j*3];
-		const float* vb = &polya[i*3];
-		const float n[3] = { vb[2]-va[2], 0, -(vb[0]-va[0]) };
+		const dtCoordinates va( polya[j] );
+		const dtCoordinates vb( polya[i] );
+		const dtCoordinates n( vb.Z()-va.Z(), 0, -(vb.X()-va.X()) );
 		float amin,amax,bmin,bmax;
 		projectPoly(n, polya, npolya, amin,amax);
 		projectPoly(n, polyb, npolyb, bmin,bmax);
@@ -319,9 +313,9 @@ bool dtOverlapPolyPoly2D(const float* polya, const int npolya,
 	}
 	for (int i = 0, j = npolyb-1; i < npolyb; j=i++)
 	{
-		const float* va = &polyb[j*3];
-		const float* vb = &polyb[i*3];
-		const float n[3] = { vb[2]-va[2], 0, -(vb[0]-va[0]) };
+		const dtCoordinates va( polyb[j] );
+		const dtCoordinates vb( polyb[i] );
+		const dtCoordinates n( vb.Z()-va.Z(), 0, -(vb.X()-va.X()) );
 		float amin,amax,bmin,bmax;
 		projectPoly(n, polya, npolya, amin,amax);
 		projectPoly(n, polyb, npolyb, bmin,bmax);
@@ -336,13 +330,13 @@ bool dtOverlapPolyPoly2D(const float* polya, const int npolya,
 
 // Returns a random point in a convex polygon.
 // Adapted from Graphics Gems article.
-void dtRandomPointInConvexPoly(const float* pts, const int npts, float* areas,
-							   const float s, const float t, float* out)
+void dtRandomPointInConvexPoly(const dtCoordinates* pts, const int npts, float* areas,
+							   const float s, const float t, dtCoordinates& out)
 {
 	// Calc triangle araes
 	float areasum = 0.0f;
 	for (int i = 2; i < npts; i++) {
-		areas[i] = dtTriArea2D(&pts[0], &pts[(i-1)*3], &pts[i*3]);
+		areas[i] = dtTriArea2D(pts[0], pts[(i-1)], pts[i]);
 		areasum += dtMax(0.001f, areas[i]);
 	}
 	// Find sub triangle weighted by area.
@@ -366,22 +360,22 @@ void dtRandomPointInConvexPoly(const float* pts, const int npts, float* areas,
 	const float a = 1 - v;
 	const float b = (1 - u) * v;
 	const float c = u * v;
-	const float* pa = &pts[0];
-	const float* pb = &pts[(tri-1)*3];
-	const float* pc = &pts[tri*3];
+	const dtCoordinates pa( pts[0] );
+	const dtCoordinates pb( pts[(tri-1)] );
+	const dtCoordinates pc( pts[tri] );
 	
-	out[0] = a*pa[0] + b*pb[0] + c*pc[0];
-	out[1] = a*pa[1] + b*pb[1] + c*pc[1];
-	out[2] = a*pa[2] + b*pb[2] + c*pc[2];
+	out.SetX( a*pa.X() + b*pb.X() + c*pc.X() );
+	out.SetY( a*pa.Y() + b*pb.Y() + c*pc.Y() );
+	out.SetZ( a*pa.Z() + b*pb.Z() + c*pc.Z() );
 }
 
-inline float vperpXZ(const float* a, const float* b) { return a[0]*b[2] - a[2]*b[0]; }
+inline float vperpXZ(const dtCoordinates& a, const dtCoordinates& b) { return a.X()*b.Z() - a.Z()*b.X(); }
 
-bool dtIntersectSegSeg2D(const float* ap, const float* aq,
-						 const float* bp, const float* bq,
+bool dtIntersectSegSeg2D(const dtCoordinates& ap, const dtCoordinates& aq,
+						 const dtCoordinates& bp, const dtCoordinates& bq,
 						 float& s, float& t)
 {
-	float u[3], v[3], w[3];
+	dtCoordinates u, v, w;
 	dtVsub(u,aq,ap);
 	dtVsub(v,bq,bp);
 	dtVsub(w,ap,bp);
@@ -394,12 +388,12 @@ bool dtIntersectSegSeg2D(const float* ap, const float* aq,
 
 //////////////////////////////////////////////////////////////////////////
 // MIRCHANG
-float	dtCorrectHeightPointTriangle( const float* pos, const float* verts )
+float	dtCorrectHeightPointTriangle( const dtCoordinates& pos, const dtCoordinates* triangle )
 {
-	float v0[3], v1[3], v2[3];
-	dtVsub(v0, &verts[6],&verts[0]);
-	dtVsub(v1, &verts[3],&verts[0]);
-	dtVsub(v2, pos,&verts[0]);
+	dtCoordinates v0, v1, v2;
+	dtVsub(v0, triangle[2],triangle[0]);
+	dtVsub(v1, triangle[1],triangle[0]);
+	dtVsub(v2, pos,triangle[0]);
 
 	const float dot00 = dtVdot2D(v0, v0);
 	const float dot01 = dtVdot2D(v0, v1);
@@ -411,11 +405,11 @@ float	dtCorrectHeightPointTriangle( const float* pos, const float* verts )
 	const float u = (dot11 * dot02 - dot01 * dot12) * invDenom;
 	const float v = (dot00 * dot12 - dot01 * dot02) * invDenom;
 
-	return verts[1] + v0[1]*u + v1[1]*v;
+	return triangle[0].Y() + v0.Y()*u + v1.Y()*v;
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool	_dtIntersectSegmentPoly2D( const float* p0, const float* p1, const float* verts, const int nverts, int& segMin, int& segMax, float* resultPosition )
+bool	_dtIntersectSegmentPoly2D( const dtCoordinates& p0, const dtCoordinates& p1, const dtCoordinates* verts, const int nverts, int& segMin, int& segMax, dtCoordinates& resultPosition )
 {
 	static const float EPS = 0.00000001f;
 
@@ -423,14 +417,14 @@ bool	_dtIntersectSegmentPoly2D( const float* p0, const float* p1, const float* v
 	segMax = -1;
 	float tmin = 0;
 	float tmax = 1;
-	float dir[3] = {0};
+	dtCoordinates dir;
 	dtVsub( dir, p1, p0 );
 
 	for( int i = 0, j = nverts-1; i < nverts; j=i++ ) {
-		const float* v0 = &verts[i*3];
-		const float* v1 = &verts[j*3];
+		const dtCoordinates v0( verts[i] );
+		const dtCoordinates v1( verts[j] );
 
-		float edge[3], diff[3];
+		dtCoordinates edge, diff;
 		dtVsub(edge, v0, v1);
 		dtVsub(diff, p0, v1);
 		const float n = dtVperp2D(edge, diff);
@@ -441,7 +435,7 @@ bool	_dtIntersectSegmentPoly2D( const float* p0, const float* p1, const float* v
 			}
 			else {
 				continue;
-		}
+			}
 		}
 		const float t = n / d;
 		if( d < 0 ) {
@@ -450,26 +444,25 @@ bool	_dtIntersectSegmentPoly2D( const float* p0, const float* p1, const float* v
 				segMin = j;
 				if( tmax < tmin ) {
 					return false;
-
-				}
 				}
 			}
-			else {
+		}
+		else {
 			if( t < tmax ) {
 				tmax = t;
 				segMax = j;
 				if( tmax < tmin ) {
 					return false;
 				}
-			//////////////////////////////////////////////////////////////////////////
-			// intersect point
-		const float t1 = ((p0[2] - v0[2]) * (v1[0] - v0[0])) - ((p0[0] - v0[0]) * (v1[2] - v0[2]));
-		const float t2 = ((p1[0] - p0[0]) * (v1[2] - v0[2])) - ((p1[2] - p0[2]) * (v1[0] - v0[0]));
-		float t0 = t1 / t2;
+				//////////////////////////////////////////////////////////////////////////
+				// intersect point
+				const float t1 = ((p0.Z() - v0.Z()) * (v1.X() - v0.X())) - ((p0.X() - v0.X()) * (v1.Z() - v0.Z()));
+				const float t2 = ((p1.X() - p0.X()) * (v1.Z() - v0.Z())) - ((p1.Z() - p0.Z()) * (v1.X() - v0.X()));
+				float t0 = t1 / t2;
 				t0 = 0.002f < t0 ? t0 - 0.002f : 0.0f;
-		dtVlerp( resultPosition, p0, p1, t0 );
-			//////////////////////////////////////////////////////////////////////////
-		}
+				dtVlerp( resultPosition, p0, p1, t0 );
+				//////////////////////////////////////////////////////////////////////////
+			}
 		}
 	}
 

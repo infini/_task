@@ -43,6 +43,7 @@
 #include "RecastAlloc.h"
 #include "RecastAssert.h"
 #include "fastlz.h"
+#include <DetourCoordinates.h>
 
 #ifdef WIN32
 #	define snprintf _snprintf
@@ -53,16 +54,25 @@
 static const int EXPECTED_LAYERS_PER_TILE = 4;
 
 
-static bool isectSegAABB(const float* sp, const float* sq,
-						 const float* amin, const float* amax,
+static bool isectSegAABB(const dtCoordinates& _sp, const dtCoordinates& _sq,
+						 const dtCoordinates& _amin, const dtCoordinates& _amax,
 						 float& tmin, float& tmax)
 {
 	static const float EPS = 1e-6f;
 	
-	float d[3];
-	rcVsub(d, sq, sp);
+	dtCoordinates _d;
+	rcVsub(_d, _sq, _sp);
 	tmin = 0;  // set to -FLT_MAX to get first hit on line
 	tmax = FLT_MAX;		// set to max distance ray can travel (for segment)
+
+	//////////////////////////////////////////////////////////////////////////
+	float d[3], sp[3], sq[3], amin[3], amax[3];
+	TransformCoordinates::transform( _d, d);
+	TransformCoordinates::transform( _sp, sp);
+	TransformCoordinates::transform( _sq, sq);
+	TransformCoordinates::transform( _amin, amin);
+	TransformCoordinates::transform( _amax, amax);
+	//////////////////////////////////////////////////////////////////////////
 	
 	// For all three slabs
 	for (int i = 0; i < 3; i++)
@@ -209,6 +219,7 @@ struct MeshProcess : public dtTileCacheMeshProcess
 			}
 		}
 
+#ifndef MODIFY_OFF_MESH_CONNECTION
 		// Pass in off-mesh connections.
 		if (m_geom)
 		{
@@ -220,6 +231,7 @@ struct MeshProcess : public dtTileCacheMeshProcess
 			params->offMeshConUserID = m_geom->getOffMeshConnectionId();
 			params->offMeshConCount = m_geom->getOffMeshConnectionCount();	
 		}
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	}
 };
 
@@ -282,7 +294,7 @@ static int rasterizeTileLayers(BuildContext* ctx, InputGeom* geom,
 	FastLZCompressor comp;
 	RasterizationContext rc;
 	
-	const float* verts = geom->getMesh()->getVerts();
+	const dtCoordinates* verts = geom->getMesh()->getVerts();
 	const int nverts = geom->getMesh()->getVertCount();
 	const rcChunkyTriMesh* chunkyMesh = geom->getChunkyMesh();
 	
@@ -292,16 +304,16 @@ static int rasterizeTileLayers(BuildContext* ctx, InputGeom* geom,
 	rcConfig tcfg;
 	memcpy(&tcfg, &cfg, sizeof(tcfg));
 
-	tcfg.bmin[0] = cfg.bmin[0] + tx*tcs;
-	tcfg.bmin[1] = cfg.bmin[1];
-	tcfg.bmin[2] = cfg.bmin[2] + ty*tcs;
-	tcfg.bmax[0] = cfg.bmin[0] + (tx+1)*tcs;
-	tcfg.bmax[1] = cfg.bmax[1];
-	tcfg.bmax[2] = cfg.bmin[2] + (ty+1)*tcs;
-	tcfg.bmin[0] -= tcfg.borderSize*tcfg.cs;
-	tcfg.bmin[2] -= tcfg.borderSize*tcfg.cs;
-	tcfg.bmax[0] += tcfg.borderSize*tcfg.cs;
-	tcfg.bmax[2] += tcfg.borderSize*tcfg.cs;
+	tcfg.bmin.SetX( cfg.bmin.X() + tx*tcs );
+	tcfg.bmin.SetY( cfg.bmin.Y() );
+	tcfg.bmin.SetZ( cfg.bmin.Z() + ty*tcs );
+	tcfg.bmax.SetX( cfg.bmin.X() + (tx+1)*tcs );
+	tcfg.bmax.SetY( cfg.bmax.Y() );
+	tcfg.bmax.SetZ( cfg.bmin.Z() + (ty+1)*tcs );
+	tcfg.bmin.SetX( tcfg.bmin.X() - tcfg.borderSize*tcfg.cs );
+	tcfg.bmin.SetZ( tcfg.bmin.Z() - tcfg.borderSize*tcfg.cs );
+	tcfg.bmax.SetX( tcfg.bmax.X() + tcfg.borderSize*tcfg.cs );
+	tcfg.bmax.SetZ( tcfg.bmax.Z() + tcfg.borderSize*tcfg.cs );
 	
 	// Allocate voxel heightfield where we rasterize our input data to.
 	rc.solid = rcAllocHeightfield();
@@ -327,10 +339,10 @@ static int rasterizeTileLayers(BuildContext* ctx, InputGeom* geom,
 	}
 	
 	float tbmin[2], tbmax[2];
-	tbmin[0] = tcfg.bmin[0];
-	tbmin[1] = tcfg.bmin[2];
-	tbmax[0] = tcfg.bmax[0];
-	tbmax[1] = tcfg.bmax[2];
+	tbmin[0] = tcfg.bmin.X();
+	tbmin[1] = tcfg.bmin.Z();
+	tbmax[0] = tcfg.bmax.X();
+	tbmax[1] = tcfg.bmax.Z();
 	int cid[512];// TODO: Make grow when returning too many items.
 	const int ncid = rcGetChunksOverlappingRect(chunkyMesh, tbmin, tbmax, cid, 512);
 	if (!ncid)
@@ -451,7 +463,7 @@ static int rasterizeTileLayers(BuildContext* ctx, InputGeom* geom,
 void drawTiles(duDebugDraw* dd, dtTileCache* tc)
 {
 	unsigned int fcol[6];
-	float bmin[3], bmax[3];
+	dtCoordinates bmin, bmax;
 
 	for (int i = 0; i < tc->getTileCount(); ++i)
 	{
@@ -462,7 +474,7 @@ void drawTiles(duDebugDraw* dd, dtTileCache* tc)
 		
 		const unsigned int col = duIntToCol(i,64);
 		duCalcBoxColors(fcol, col, col);
-		duDebugDrawBox(dd, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], fcol);
+		duDebugDrawBox(dd, bmin.X(),bmin.Y(),bmin.Z(), bmax.X(),bmax.Y(),bmax.Z(), fcol);
 	}
 	
 	for (int i = 0; i < tc->getTileCount(); ++i)
@@ -474,8 +486,8 @@ void drawTiles(duDebugDraw* dd, dtTileCache* tc)
 		
 		const unsigned int col = duIntToCol(i,255);
 		const float pad = tc->getParams()->cs * 0.1f;
-		duDebugDrawBoxWire(dd, bmin[0]-pad,bmin[1]-pad,bmin[2]-pad,
-						   bmax[0]+pad,bmax[1]+pad,bmax[2]+pad, col, 2.0f);
+		duDebugDrawBoxWire(dd, bmin.X()-pad,bmin.Y()-pad,bmin.Z()-pad,
+						   bmax.X()+pad,bmax.Y()+pad,bmax.Z()+pad, col, 2.0f);
 	}
 
 }
@@ -591,13 +603,10 @@ void drawDetailOverlay(const dtTileCache* tc, const int tx, const int ty, double
 	{
 		const dtCompressedTile* tile = tc->getTileByRef(tiles[i]);
 		
-		float pos[3];
-		pos[0] = (tile->header->bmin[0]+tile->header->bmax[0])/2.0f;
-		pos[1] = tile->header->bmin[1];
-		pos[2] = (tile->header->bmin[2]+tile->header->bmax[2])/2.0f;
+		const dtCoordinates pos( (tile->header->bmin.X()+tile->header->bmax.X())/2.0f, tile->header->bmin.Y(), (tile->header->bmin.Z()+tile->header->bmax.Z())/2.0f );
 		
 		GLdouble x, y, z;
-		if (gluProject((GLdouble)pos[0], (GLdouble)pos[1], (GLdouble)pos[2],
+		if (gluProject((GLdouble)pos.X(), (GLdouble)pos.Y(), (GLdouble)pos.Z(),
 					   model, proj, view, &x, &y, &z))
 		{
 			snprintf(text,128,"(%d,%d)/%d", tile->header->tx,tile->header->ty,tile->header->tlayer);
@@ -610,7 +619,7 @@ void drawDetailOverlay(const dtTileCache* tc, const int tx, const int ty, double
 	}
 }
 		
-dtObstacleRef hitTestObstacle(const dtTileCache* tc, const float* sp, const float* sq)
+dtObstacleRef hitTestObstacle(const dtTileCache* tc, const dtCoordinates& sp, const dtCoordinates& sq)
 {
 	float tmin = FLT_MAX;
 	const dtTileCacheObstacle* obmin = 0;
@@ -620,7 +629,8 @@ dtObstacleRef hitTestObstacle(const dtTileCache* tc, const float* sp, const floa
 		if (ob->state == DT_OBSTACLE_EMPTY)
 			continue;
 		
-		float bmin[3], bmax[3], t0,t1;
+		dtCoordinates bmin, bmax;
+		float t0,t1;
 		tc->getObstacleBounds(ob, bmin,bmax);
 		
 		if (isectSegAABB(sp,sq, bmin,bmax, t0,t1))
@@ -642,7 +652,7 @@ void drawObstacles(duDebugDraw* dd, const dtTileCache* tc)
 	{
 		const dtTileCacheObstacle* ob = tc->getObstacle(i);
 		if (ob->state == DT_OBSTACLE_EMPTY) continue;
-		float bmin[3], bmax[3];
+		dtCoordinates bmin, bmax;
 		tc->getObstacleBounds(ob, bmin,bmax);
 
 		unsigned int col = 0;
@@ -653,8 +663,8 @@ void drawObstacles(duDebugDraw* dd, const dtTileCache* tc)
 		else if (ob->state == DT_OBSTACLE_REMOVING)
 			col = duRGBA(220,0,0,128);
 
-		duDebugDrawCylinder(dd, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], col);
-		duDebugDrawCylinderWire(dd, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], duDarkenCol(col), 2);
+		duDebugDrawCylinder(dd, bmin.X(),bmin.Y(),bmin.Z(), bmax.X(),bmax.Y(),bmax.Z(), col);
+		duDebugDrawCylinderWire(dd, bmin.X(),bmin.Y(),bmin.Z(), bmax.X(),bmax.Y(),bmax.Z(), duDarkenCol(col), 2);
 	}
 }
 
@@ -664,7 +674,7 @@ void drawObstacles(duDebugDraw* dd, const dtTileCache* tc)
 class TempObstacleHilightTool : public SampleTool
 {
 	Sample_TempObstacles* m_sample;
-	float m_hitPos[3];
+	dtCoordinates m_hitPos;
 	bool m_hitPosSet;
 	float m_agentRadius;
 	int m_drawType;
@@ -677,7 +687,6 @@ public:
 		m_agentRadius(0),
 		m_drawType(DRAWDETAIL_AREAS)
 	{
-		m_hitPos[0] = m_hitPos[1] = m_hitPos[2] = 0;
 	}
 
 	virtual ~TempObstacleHilightTool()
@@ -708,7 +717,7 @@ public:
 			m_drawType = DRAWDETAIL_MESH;
 	}
 
-	virtual void handleClick(const float* /*s*/, const float* p, bool /*shift*/)
+	virtual void handleClick(const dtCoordinates& /*s*/, const dtCoordinates& p, bool /*shift*/)
 	{
 		m_hitPosSet = true;
 		rcVcopy(m_hitPos,p);
@@ -728,12 +737,12 @@ public:
 			glColor4ub(0,0,0,128);
 			glLineWidth(2.0f);
 			glBegin(GL_LINES);
-			glVertex3f(m_hitPos[0]-s,m_hitPos[1]+0.1f,m_hitPos[2]);
-			glVertex3f(m_hitPos[0]+s,m_hitPos[1]+0.1f,m_hitPos[2]);
-			glVertex3f(m_hitPos[0],m_hitPos[1]-s+0.1f,m_hitPos[2]);
-			glVertex3f(m_hitPos[0],m_hitPos[1]+s+0.1f,m_hitPos[2]);
-			glVertex3f(m_hitPos[0],m_hitPos[1]+0.1f,m_hitPos[2]-s);
-			glVertex3f(m_hitPos[0],m_hitPos[1]+0.1f,m_hitPos[2]+s);
+			glVertex3f(m_hitPos.X()-s,m_hitPos.Y()+0.1f,m_hitPos.Z());
+			glVertex3f(m_hitPos.X()+s,m_hitPos.Y()+0.1f,m_hitPos.Z());
+			glVertex3f(m_hitPos.X(),m_hitPos.Y()-s+0.1f,m_hitPos.Z());
+			glVertex3f(m_hitPos.X(),m_hitPos.Y()+s+0.1f,m_hitPos.Z());
+			glVertex3f(m_hitPos.X(),m_hitPos.Y()+0.1f,m_hitPos.Z()-s);
+			glVertex3f(m_hitPos.X(),m_hitPos.Y()+0.1f,m_hitPos.Z()+s);
 			glEnd();
 			glLineWidth(1.0f);
 			
@@ -798,7 +807,7 @@ public:
 		imguiValue("Shift+LMB to remove an obstacle.");
 	}
 	
-	virtual void handleClick(const float* s, const float* p, bool shift)
+	virtual void handleClick(const dtCoordinates& s, const dtCoordinates& p, bool shift)
 	{
 		if (m_sample)
 		{
@@ -862,8 +871,8 @@ void Sample_TempObstacles::handleSettings()
 	int gridSize = 1;
 	if (m_geom)
 	{
-		const float* bmin = m_geom->getMeshBoundsMin();
-		const float* bmax = m_geom->getMeshBoundsMax();
+		const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+		const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
 		char text[64];
 		int gw = 0, gh = 0;
 		rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
@@ -1021,7 +1030,10 @@ void Sample_TempObstacles::handleRender()
 		duDebugDrawTriMeshSlope(&dd, m_geom->getMesh()->getVerts(), m_geom->getMesh()->getVertCount(),
 								m_geom->getMesh()->getTris(), m_geom->getMesh()->getNormals(), m_geom->getMesh()->getTriCount(),
 								m_agentMaxSlope, texScale);
+
+#ifndef MODIFY_OFF_MESH_CONNECTION
 		m_geom->drawOffMeshConnections(&dd);
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	}
 	
 	if (m_tileCache && m_drawMode == DRAWMODE_CACHE_BOUNDS)
@@ -1034,9 +1046,9 @@ void Sample_TempObstacles::handleRender()
 	glDepthMask(GL_FALSE);
 	
 	// Draw bounds
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
-	duDebugDrawBoxWire(&dd, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], duRGBA(255,255,255,128), 1.0f);
+	const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+	const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
+	duDebugDrawBoxWire(&dd, bmin.X(),bmin.Y(),bmin.Z(), bmax.X(),bmax.Y(),bmax.Z(), duRGBA(255,255,255,128), 1.0f);
 	
 	// Tiling grid.
 	int gw = 0, gh = 0;
@@ -1044,7 +1056,7 @@ void Sample_TempObstacles::handleRender()
 	const int tw = (gw + (int)m_tileSize-1) / (int)m_tileSize;
 	const int th = (gh + (int)m_tileSize-1) / (int)m_tileSize;
 	const float s = m_tileSize*m_cellSize;
-	duDebugDrawGridXZ(&dd, bmin[0],bmin[1],bmin[2], tw,th, s, duRGBA(0,0,0,64), 1.0f);
+	duDebugDrawGridXZ(&dd, bmin.X(),bmin.Y(),bmin.Z(), tw,th, s, duRGBA(0,0,0,64), 1.0f);
 		
 	if (m_navMesh && m_navQuery &&
 		(m_drawMode == DRAWMODE_NAVMESH ||
@@ -1140,17 +1152,17 @@ void Sample_TempObstacles::handleMeshChanged(class InputGeom* geom)
 	initToolStates(this);
 }
 
-void Sample_TempObstacles::addTempObstacle(const float* pos)
+void Sample_TempObstacles::addTempObstacle(const dtCoordinates& pos)
 {
 	if (!m_tileCache)
 		return;
-	float p[3];
+	dtCoordinates p;
 	dtVcopy(p, pos);
-	p[1] -= 0.5f;
+	p.SetY( p.Y() - 0.5f );
 	m_tileCache->addObstacle(p, 1.0f, 2.0f, 0);
 }
 
-void Sample_TempObstacles::removeTempObstacle(const float* sp, const float* sq)
+void Sample_TempObstacles::removeTempObstacle(const dtCoordinates& sp, const dtCoordinates& sq)
 {
 	if (!m_tileCache)
 		return;
@@ -1183,8 +1195,8 @@ bool Sample_TempObstacles::handleBuild()
 	m_tmproc->init(m_geom);
 	
 	// Init cache
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
+	const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+	const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
 	int gw = 0, gh = 0;
 	rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
 	const int ts = (int)m_tileSize;
@@ -1351,13 +1363,13 @@ void Sample_TempObstacles::handleUpdate(const float dt)
 	m_tileCache->update(dt, m_navMesh);
 }
 
-void Sample_TempObstacles::getTilePos(const float* pos, int& tx, int& ty)
+void Sample_TempObstacles::getTilePos(const dtCoordinates& pos, int& tx, int& ty)
 {
 	if (!m_geom) return;
 	
-	const float* bmin = m_geom->getMeshBoundsMin();
+	const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
 	
 	const float ts = m_tileSize*m_cellSize;
-	tx = (int)((pos[0] - bmin[0]) / ts);
-	ty = (int)((pos[2] - bmin[2]) / ts);
+	tx = (int)((pos.X() - bmin.X()) / ts);
+	ty = (int)((pos.Z() - bmin.Z()) / ts);
 }

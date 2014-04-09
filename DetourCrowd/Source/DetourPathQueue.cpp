@@ -133,7 +133,7 @@ void dtPathQueue::update(const int maxIters)
 }
 
 dtPathQueueRef dtPathQueue::request(dtPolyRef startRef, dtPolyRef endRef,
-									const float* startPos, const float* endPos,
+									const dtCoordinates& startPos, const dtCoordinates& endPos,
 									const dtQueryFilter* filter)
 {
 	// Find empty slot

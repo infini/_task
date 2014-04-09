@@ -258,18 +258,21 @@ void Sample_SoloMesh::handleRender()
 		duDebugDrawTriMeshSlope(&dd, m_geom->getMesh()->getVerts(), m_geom->getMesh()->getVertCount(),
 								m_geom->getMesh()->getTris(), m_geom->getMesh()->getNormals(), m_geom->getMesh()->getTriCount(),
 								m_agentMaxSlope, texScale);
+
+#ifndef MODIFY_OFF_MESH_CONNECTION
 		m_geom->drawOffMeshConnections(&dd);
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	}
 	
 	glDisable(GL_FOG);
 	glDepthMask(GL_FALSE);
 
 	// Draw bounds
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
-	duDebugDrawBoxWire(&dd, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], duRGBA(255,255,255,128), 1.0f);
+	const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+	const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
+	duDebugDrawBoxWire(&dd, bmin.X(),bmin.Y(),bmin.Z(), bmax.X(),bmax.Y(),bmax.Z(), duRGBA(255,255,255,128), 1.0f);
 	dd.begin(DU_DRAW_POINTS, 5.0f);
-	dd.vertex(bmin[0],bmin[1],bmin[2],duRGBA(255,255,255,128));
+	dd.vertex(bmin.X(),bmin.Y(),bmin.Z(),duRGBA(255,255,255,128));
 	dd.end();
 	
 	if (m_navMesh && m_navQuery &&
@@ -393,9 +396,9 @@ bool Sample_SoloMesh::handleBuild()
 	
 	cleanup();
 	
-	float* bmin = const_cast<float*>( m_geom->getMeshBoundsMin() );
-	float* bmax = const_cast<float*>( m_geom->getMeshBoundsMax() );
-	const float* verts = m_geom->getMesh()->getVerts();
+	const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+	const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
+	const dtCoordinates* verts = m_geom->getMesh()->getVerts();
 	const int nverts = m_geom->getMesh()->getVertCount();
 	const int* tris = m_geom->getMesh()->getTris();
 	const int ntris = m_geom->getMesh()->getTriCount();
@@ -653,6 +656,7 @@ bool Sample_SoloMesh::handleBuild()
 		params.detailVertsCount = m_dmesh->nverts;
 		params.detailTris = m_dmesh->tris;
 		params.detailTriCount = m_dmesh->ntris;
+#ifndef MODIFY_OFF_MESH_CONNECTION
 		params.offMeshConVerts = m_geom->getOffMeshConnectionVerts();
 		params.offMeshConRad = m_geom->getOffMeshConnectionRads();
 		params.offMeshConDir = m_geom->getOffMeshConnectionDirs();
@@ -660,6 +664,7 @@ bool Sample_SoloMesh::handleBuild()
 		params.offMeshConFlags = m_geom->getOffMeshConnectionFlags();
 		params.offMeshConUserID = m_geom->getOffMeshConnectionId();
 		params.offMeshConCount = m_geom->getOffMeshConnectionCount();
+#endif // !MODIFY_OFF_MESH_CONNECTION
 		params.walkableHeight = m_agentHeight;
 		params.walkableRadius = m_agentRadius;
 		params.walkableClimb = m_agentMaxClimb;

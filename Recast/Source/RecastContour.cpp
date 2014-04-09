@@ -630,10 +630,10 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 	{
 		// If the heightfield was build with bordersize, remove the offset.
 		const float pad = borderSize*chf.cs;
-		cset.bmin[0] += pad;
-		cset.bmin[2] += pad;
-		cset.bmax[0] -= pad;
-		cset.bmax[2] -= pad;
+		cset.bmin.SetX( cset.bmin.X() + pad );
+		cset.bmin.SetZ( cset.bmin.Z() + pad );
+		cset.bmax.SetX( cset.bmax.X() - pad );
+		cset.bmax.SetZ( cset.bmax.Z() - pad );
 	}
 	cset.cs = chf.cs;
 	cset.ch = chf.ch;

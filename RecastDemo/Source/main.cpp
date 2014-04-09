@@ -34,6 +34,7 @@
 #include "Sample_TileMesh.h"
 #include "Sample_TempObstacles.h"
 #include "Sample_Debug.h"
+#include <DetourCoordinates.h>
 
 #ifdef DIVISION_BUILD
 #include <omp.h>
@@ -140,7 +141,7 @@ int main(int /*argc*/, char** /*argv*/)
 	float scrollZoom = 0;
 	bool rotate = false;
 	bool movedDuringRotate = false;
-	float rays[3], raye[3]; 
+	dtCoordinates rays, raye; 
 	bool mouseOverMenu = false;
 	bool showMenu = !presentationMode;
 	bool showLog = false;
@@ -169,7 +170,7 @@ int main(int /*argc*/, char** /*argv*/)
 	char directoryPath[MAX_PATH] = "Choose Directory...";
 #endif // DIVISION_BUILD
 	
-	float mpos[3] = {0,0,0};
+	dtCoordinates mpos;
 	bool mposSet = false;
 	
 	SlideShow slideShow;
@@ -257,8 +258,8 @@ int main(int /*argc*/, char** /*argv*/)
 							
 						if (geom || sample)
 						{
-							const float* bmin = 0;
-							const float* bmax = 0;
+							const dtCoordinates* bmin = 0;
+							const dtCoordinates* bmax = 0;
 							if (sample)
 							{
 								bmin = sample->getBoundsMin();
@@ -266,18 +267,18 @@ int main(int /*argc*/, char** /*argv*/)
 							}
 							else if (geom)
 							{
-								bmin = geom->getMeshBoundsMin();
-								bmax = geom->getMeshBoundsMax();
+								bmin = &geom->getMeshBoundsMin();
+								bmax = &geom->getMeshBoundsMax();
 							}
 							// Reset camera and fog to match the mesh bounds.
 							if (bmin && bmax)
 							{
-								camr = sqrtf(rcSqr(bmax[0]-bmin[0]) +
-											 rcSqr(bmax[1]-bmin[1]) +
-											 rcSqr(bmax[2]-bmin[2])) / 2;
-								camx = (bmax[0] + bmin[0]) / 2 + camr;
-								camy = (bmax[1] + bmin[1]) / 2 + camr;
-								camz = (bmax[2] + bmin[2]) / 2 + camr;
+								camr = sqrtf(rcSqr(bmax->X()-bmin->X()) +
+											 rcSqr(bmax->Y()-bmin->Y()) +
+											 rcSqr(bmax->Z()-bmin->Z())) / 2;
+								camx = (bmax->X() + bmin->X()) / 2 + camr;
+								camy = (bmax->Y() + bmin->Y()) / 2 + camr;
+								camz = (bmax->Z() + bmin->Z()) / 2 + camr;
 								camr *= 3;
 							}
 							rx = 45;
@@ -399,16 +400,13 @@ int main(int /*argc*/, char** /*argv*/)
 				{
 					// Marker
 					mposSet = true;
-					mpos[0] = rays[0] + (raye[0] - rays[0])*hitt;
-					mpos[1] = rays[1] + (raye[1] - rays[1])*hitt;
-					mpos[2] = rays[2] + (raye[2] - rays[2])*hitt;
+					mpos.SetX( rays.X() + (raye.X() - rays.X())*hitt );
+					mpos.SetY( rays.Y() + (raye.Y() - rays.Y())*hitt );
+					mpos.SetZ( rays.Z() + (raye.Z() - rays.Z())*hitt );
 				}
 				else
 				{
-					float pos[3];
-					pos[0] = rays[0] + (raye[0] - rays[0])*hitt;
-					pos[1] = rays[1] + (raye[1] - rays[1])*hitt;
-					pos[2] = rays[2] + (raye[2] - rays[2])*hitt;
+					const dtCoordinates pos( rays.X() + (raye.X() - rays.X())*hitt, rays.Y() + (raye.Y() - rays.Y())*hitt, rays.Z() + (raye.Z() - rays.Z())*hitt );
 					sample->handleClick(rays, pos, processHitTestShift);
 				}
 			}
@@ -477,9 +475,9 @@ int main(int /*argc*/, char** /*argv*/)
 		glGetIntegerv(GL_VIEWPORT, view);
 		GLdouble x, y, z;
 		gluUnProject(mx, my, 0.0f, model, proj, view, &x, &y, &z);
-		rays[0] = (float)x; rays[1] = (float)y; rays[2] = (float)z;
+		rays = dtCoordinates( static_cast<float>(x), static_cast<float>(y), static_cast<float>(z) );
 		gluUnProject(mx, my, 1.0f, model, proj, view, &x, &y, &z);
-		raye[0] = (float)x; raye[1] = (float)y; raye[2] = (float)z;
+		raye = dtCoordinates( static_cast<float>(x), static_cast<float>(y), static_cast<float>(z) );
 		
 		// Handle keyboard movement.
 		Uint8* keystate = SDL_GetKeyState(NULL);
@@ -743,8 +741,8 @@ int main(int /*argc*/, char** /*argv*/)
 
 			if (geom || sample)
 			{
-				const float* bmin = 0;
-				const float* bmax = 0;
+				const dtCoordinates* bmin = 0;
+				const dtCoordinates* bmax = 0;
 				if (sample)
 				{
 					bmin = sample->getBoundsMin();
@@ -752,18 +750,18 @@ int main(int /*argc*/, char** /*argv*/)
 				}
 				else if (geom)
 				{
-					bmin = geom->getMeshBoundsMin();
-					bmax = geom->getMeshBoundsMax();
+					bmin = &geom->getMeshBoundsMin();
+					bmax = &geom->getMeshBoundsMax();
 				}
 				// Reset camera and fog to match the mesh bounds.
 				if (bmin && bmax)
 				{
-					camr = sqrtf(rcSqr(bmax[0]-bmin[0]) +
-								 rcSqr(bmax[1]-bmin[1]) +
-								 rcSqr(bmax[2]-bmin[2])) / 2;
-					camx = (bmax[0] + bmin[0]) / 2 + camr;
-					camy = (bmax[1] + bmin[1]) / 2 + camr;
-					camz = (bmax[2] + bmin[2]) / 2 + camr;
+					camr = sqrtf(rcSqr(bmax->X()-bmin->X()) +
+								 rcSqr(bmax->Y()-bmin->Y()) +
+								 rcSqr(bmax->Z()-bmin->Z())) / 2;
+					camx = (bmax->X() + bmin->X()) / 2 + camr;
+					camy = (bmax->Y() + bmin->Y()) / 2 + camr;
+					camz = (bmax->Z() + bmin->Z()) / 2 + camr;
 					camr *= 3;
 				}
 				rx = 45;
@@ -832,8 +830,8 @@ int main(int /*argc*/, char** /*argv*/)
 
 						if (geom || sample)
 						{
-							const float* bmin = 0;
-							const float* bmax = 0;
+							const dtCoordinates* bmin = 0;
+							const dtCoordinates* bmax = 0;
 							if (sample)
 							{
 								bmin = sample->getBoundsMin();
@@ -841,18 +839,18 @@ int main(int /*argc*/, char** /*argv*/)
 							}
 							else if (geom)
 							{
-								bmin = geom->getMeshBoundsMin();
-								bmax = geom->getMeshBoundsMax();
+								bmin = &geom->getMeshBoundsMin();
+								bmax = &geom->getMeshBoundsMax();
 							}
 							// Reset camera and fog to match the mesh bounds.
 							if (bmin && bmax)
 							{
-								camr = sqrtf(rcSqr(bmax[0]-bmin[0]) +
-									rcSqr(bmax[1]-bmin[1]) +
-									rcSqr(bmax[2]-bmin[2])) / 2;
-								camx = (bmax[0] + bmin[0]) / 2 + camr;
-								camy = (bmax[1] + bmin[1]) / 2 + camr;
-								camz = (bmax[2] + bmin[2]) / 2 + camr;
+								camr = sqrtf(rcSqr(bmax->X()-bmin->X()) +
+									rcSqr(bmax->Y()-bmin->Y()) +
+									rcSqr(bmax->Z()-bmin->Z())) / 2;
+								camx = (bmax->X() + bmin->X()) / 2 + camr;
+								camy = (bmax->Y() + bmin->Y()) / 2 + camr;
+								camz = (bmax->Z() + bmin->Z()) / 2 + camr;
 								camr *= 3;
 							}
 							rx = 45;
@@ -893,8 +891,8 @@ int main(int /*argc*/, char** /*argv*/)
 
 					if (geom || sample)
 					{
-						const float* bmin = 0;
-						const float* bmax = 0;
+						const dtCoordinates* bmin = 0;
+						const dtCoordinates* bmax = 0;
 						if (sample)
 						{
 							bmin = sample->getBoundsMin();
@@ -902,18 +900,18 @@ int main(int /*argc*/, char** /*argv*/)
 						}
 						else if (geom)
 						{
-							bmin = geom->getMeshBoundsMin();
-							bmax = geom->getMeshBoundsMax();
+							bmin = &geom->getMeshBoundsMin();
+							bmax = &geom->getMeshBoundsMax();
 						}
 						// Reset camera and fog to match the mesh bounds.
 						if (bmin && bmax)
 						{
-							camr = sqrtf(rcSqr(bmax[0]-bmin[0]) +
-								rcSqr(bmax[1]-bmin[1]) +
-								rcSqr(bmax[2]-bmin[2])) / 2;
-							camx = (bmax[0] + bmin[0]) / 2 + camr;
-							camy = (bmax[1] + bmin[1]) / 2 + camr;
-							camz = (bmax[2] + bmin[2]) / 2 + camr;
+							camr = sqrtf(rcSqr(bmax->X()-bmin->X()) +
+								rcSqr(bmax->Y()-bmin->Y()) +
+								rcSqr(bmax->Z()-bmin->Z())) / 2;
+							camx = (bmax->X() + bmin->X()) / 2 + camr;
+							camy = (bmax->Y() + bmin->Y()) / 2 + camr;
+							camz = (bmax->Z() + bmin->Z()) / 2 + camr;
 							camr *= 3;
 						}
 						rx = 45;
@@ -1067,8 +1065,8 @@ int main(int /*argc*/, char** /*argv*/)
 					
 					if (geom || sample)
 					{
-						const float* bmin = 0;
-						const float* bmax = 0;
+						const dtCoordinates* bmin = 0;
+						const dtCoordinates* bmax = 0;
 						if (sample)
 						{
 							bmin = sample->getBoundsMin();
@@ -1076,18 +1074,18 @@ int main(int /*argc*/, char** /*argv*/)
 						}
 						else if (geom)
 						{
-							bmin = geom->getMeshBoundsMin();
-							bmax = geom->getMeshBoundsMax();
+							bmin = &geom->getMeshBoundsMin();
+							bmax = &geom->getMeshBoundsMax();
 						}
 						// Reset camera and fog to match the mesh bounds.
 						if (bmin && bmax)
 						{
-							camr = sqrtf(rcSqr(bmax[0]-bmin[0]) +
-										 rcSqr(bmax[1]-bmin[1]) +
-										 rcSqr(bmax[2]-bmin[2])) / 2;
-							camx = (bmax[0] + bmin[0]) / 2 + camr;
-							camy = (bmax[1] + bmin[1]) / 2 + camr;
-							camz = (bmax[2] + bmin[2]) / 2 + camr;
+							camr = sqrtf(rcSqr(bmax->X()-bmin->X()) +
+										 rcSqr(bmax->Y()-bmin->Y()) +
+										 rcSqr(bmax->Z()-bmin->Z())) / 2;
+							camx = (bmax->X() + bmin->X()) / 2 + camr;
+							camy = (bmax->Y() + bmin->Y()) / 2 + camr;
+							camz = (bmax->Z() + bmin->Z()) / 2 + camr;
 							camr *= 3;
 						}
 						rx = 45;
@@ -1131,7 +1129,7 @@ int main(int /*argc*/, char** /*argv*/)
 		slideShow.updateAndDraw(dt, (float)width, (float)height);
 		
 		// Marker
-		if (mposSet && gluProject((GLdouble)mpos[0], (GLdouble)mpos[1], (GLdouble)mpos[2],
+		if (mposSet && gluProject((GLdouble)mpos.X(), (GLdouble)mpos.Y(), (GLdouble)mpos.Z(),
 								  model, proj, view, &x, &y, &z))
 		{
 			// Draw marker circle

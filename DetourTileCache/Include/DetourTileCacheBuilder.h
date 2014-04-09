@@ -21,6 +21,7 @@
 
 #include "DetourAlloc.h"
 #include "DetourStatus.h"
+#include "DetourCoordinates.h"
 
 static const int DT_TILECACHE_MAGIC = 'D'<<24 | 'T'<<16 | 'L'<<8 | 'R'; ///< 'DTLR';
 static const int DT_TILECACHE_VERSION = 1;
@@ -34,7 +35,7 @@ struct dtTileCacheLayerHeader
 	int magic;								///< Data magic
 	int version;							///< Data version
 	int tx,ty,tlayer;
-	float bmin[3], bmax[3];
+	dtCoordinates bmin, bmax;
 	unsigned short hmin, hmax;				///< Height min/max range
 	unsigned char width, height;			///< Dimension of the layer.
 	unsigned char minx, maxx, miny, maxy;	///< Usable sub-region.
@@ -122,8 +123,8 @@ void dtFreeTileCacheContourSet(dtTileCacheAlloc* alloc, dtTileCacheContourSet* c
 dtTileCachePolyMesh* dtAllocTileCachePolyMesh(dtTileCacheAlloc* alloc);
 void dtFreeTileCachePolyMesh(dtTileCacheAlloc* alloc, dtTileCachePolyMesh* lmesh);
 
-dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-							const float* pos, const float radius, const float height, const unsigned char areaId);
+dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const dtCoordinates& orig, const float cs, const float ch,
+							const dtCoordinates& pos, const float radius, const float height, const unsigned char areaId);
 
 dtStatus dtBuildTileCacheRegions(dtTileCacheAlloc* alloc,
 								 dtTileCacheLayer& layer,
@@ -142,7 +143,7 @@ dtStatus dtBuildTileCachePolyMesh(dtTileCacheAlloc* alloc,
 /// Tile layer data does not need endian swapping as it consits only of bytes.
 ///  @param[in,out]	data		The tile data array.
 ///  @param[in]		dataSize	The size of the data array.
-bool dtTileCacheHeaderSwapEndian(unsigned char* data, const int dataSize);
+//bool dtTileCacheHeaderSwapEndian(unsigned char* data, const int dataSize);
 
 
 #endif // DETOURTILECACHEBUILDER_H

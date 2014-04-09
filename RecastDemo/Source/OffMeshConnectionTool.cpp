@@ -74,8 +74,9 @@ void OffMeshConnectionTool::handleMenu()
 		m_bidir = true;
 }
 
-void OffMeshConnectionTool::handleClick(const float* /*s*/, const float* p, bool shift)
+void OffMeshConnectionTool::handleClick(const dtCoordinates& /*s*/, const dtCoordinates& /*p*/, bool /*shift*/)
 {
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	if (!m_sample) return;
 	InputGeom* geom = m_sample->getInputGeom();
 	if (!geom) return;
@@ -120,7 +121,7 @@ void OffMeshConnectionTool::handleClick(const float* /*s*/, const float* p, bool
 			m_hitPosSet = false;
 		}
 	}
-	
+#endif // !MODIFY_OFF_MESH_CONNECTION
 }
 
 void OffMeshConnectionTool::handleToggle()
@@ -143,9 +144,11 @@ void OffMeshConnectionTool::handleRender()
 	if (m_hitPosSet)
 		duDebugDrawCross(&dd, m_hitPos[0],m_hitPos[1]+0.1f,m_hitPos[2], s, duRGBA(0,0,0,128), 2.0f);
 
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	InputGeom* geom = m_sample->getInputGeom();
 	if (geom)
 		geom->drawOffMeshConnections(&dd, true);
+#endif // !MODIFY_OFF_MESH_CONNECTION
 }
 
 void OffMeshConnectionTool::handleRenderOverlay(double* proj, double* model, int* view)

@@ -25,6 +25,7 @@
 #include "DetourPathCorridor.h"
 #include "DetourProximityGrid.h"
 #include "DetourPathQueue.h"
+#include "DetourCoordinates.h"
 
 /// The maximum number of neighbors that a crowd agent can take into account
 /// for steering decisions.
@@ -130,17 +131,17 @@ struct dtCrowdAgent
 	/// The desired speed.
 	float desiredSpeed;
 
-	float npos[3];		///< The current agent position. [(x, y, z)]
-	float disp[3];
-	float dvel[3];		///< The desired velocity of the agent. [(x, y, z)]
-	float nvel[3];
-	float vel[3];		///< The actual velocity of the agent. [(x, y, z)]
+	dtCoordinates npos;		///< The current agent position. [(x, y, z)]
+	dtCoordinates disp;
+	dtCoordinates dvel;		///< The desired velocity of the agent. [(x, y, z)]
+	dtCoordinates nvel;
+	dtCoordinates vel;		///< The actual velocity of the agent. [(x, y, z)]
 
 	/// The agent's configuration parameters.
 	dtCrowdAgentParams params;
 
 	/// The local path corridor corners for the agent. (Staight path.) [(x, y, z) * #ncorners]
-	float cornerVerts[DT_CROWDAGENT_MAX_CORNERS*3];
+	dtCoordinates cornerVerts[DT_CROWDAGENT_MAX_CORNERS];
 
 	/// The local path corridor corner flags. (See: #dtStraightPathFlags) [(flags) * #ncorners]
 	unsigned char cornerFlags[DT_CROWDAGENT_MAX_CORNERS];
@@ -153,7 +154,7 @@ struct dtCrowdAgent
 	
 	unsigned char targetState;			///< State of the movement request.
 	dtPolyRef targetRef;				///< Target polyref of the movement request.
-	float targetPos[3];					///< Target position of the movement request (or velocity in case of DT_CROWDAGENT_TARGET_VELOCITY).
+	dtCoordinates targetPos;			///< Target position of the movement request (or velocity in case of DT_CROWDAGENT_TARGET_VELOCITY).
 	dtPathQueueRef targetPathqRef;		///< Path finder ref.
 	bool targetReplan;					///< Flag indicating that the current path is being replanned.
 	float targetReplanTime;				/// <Time since the agent's target was replanned.
@@ -162,7 +163,7 @@ struct dtCrowdAgent
 struct dtCrowdAgentAnimation
 {
 	unsigned char active;
-	float initPos[3], startPos[3], endPos[3];
+	dtCoordinates initPos, startPos, endPos;
 	dtPolyRef polyRef;
 	float t, tmax;
 };
@@ -182,7 +183,7 @@ enum UpdateFlags
 struct dtCrowdAgentDebugInfo
 {
 	int idx;
-	float optStart[3], optEnd[3];
+	dtCoordinates optStart, optEnd;
 	dtObstacleAvoidanceDebugData* vod;
 };
 
@@ -205,7 +206,7 @@ class dtCrowd
 	dtPolyRef* m_pathResult;
 	int m_maxPathResult;
 	
-	float m_ext[3];
+	dtCoordinates m_ext;
 	dtQueryFilter m_filter;
 	
 	float m_maxAgentRadius;
@@ -220,7 +221,7 @@ class dtCrowd
 
 	inline int getAgentIndex(const dtCrowdAgent* agent) const  { return (int)(agent - m_agents); }
 
-	bool requestMoveTargetReplan(const int idx, dtPolyRef ref, const float* pos);
+	bool requestMoveTargetReplan(const int idx, dtPolyRef ref, const dtCoordinates& pos);
 
 	void purge();
 	
@@ -259,7 +260,7 @@ public:
 	///  @param[in]		pos		The requested position of the agent. [(x, y, z)]
 	///  @param[in]		params	The configutation of the agent.
 	/// @return The index of the agent in the agent pool. Or -1 if the agent could not be added.
-	int addAgent(const float* pos, const dtCrowdAgentParams* params);
+	int addAgent(const dtCoordinates& pos, const dtCrowdAgentParams* params);
 
 	/// Updates the specified agent's configuration.
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
@@ -275,13 +276,13 @@ public:
 	///  @param[in]		ref		The position's polygon reference.
 	///  @param[in]		pos		The position within the polygon. [(x, y, z)]
 	/// @return True if the request was successfully submitted.
-	bool requestMoveTarget(const int idx, dtPolyRef ref, const float* pos);
+	bool requestMoveTarget(const int idx, dtPolyRef ref, const dtCoordinates& pos);
 
 	/// Submits a new move request for the specified agent.
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	///  @param[in]		vel		The movement velocity. [(x, y, z)]
 	/// @return True if the request was successfully submitted.
-	bool requestMoveVelocity(const int idx, const float* vel);
+	bool requestMoveVelocity(const int idx, const dtCoordinates& vel);
 
 	/// Resets any request for the specified agent.
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
@@ -309,7 +310,7 @@ public:
 
 	/// Gets the search extents [(x, y, z)] used by the crowd for query operations. 
 	/// @return The search extents used by the crowd. [(x, y, z)]
-	const float* getQueryExtents() const { return m_ext; }
+	const dtCoordinates& getQueryExtents() const { return m_ext; }
 	
 	/// Gets the velocity sample count.
 	/// @return The velocity sample count.

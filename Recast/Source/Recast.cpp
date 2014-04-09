@@ -185,43 +185,43 @@ void rcFreePolyMeshDetail(rcPolyMeshDetail* dmesh)
 }
 
 #ifdef MODIFY_SQUARE_SECTOR
-void rcCalcBounds( const float* verts, const int nv, const float* square_min, const float* square_max, float* bmin, float* bmax )
+void rcCalcBounds( const dtCoordinates* verts, const int nv, const dtCoordinates& square_min, const dtCoordinates& square_max, dtCoordinates& bmin, dtCoordinates& bmax )
 {
 	// Calculate bounding box.
-	rcVcopy(bmin, verts);
-	rcVcopy(bmax, verts);
+	rcVcopy(bmin, verts[0]);
+	rcVcopy(bmax, verts[0]);
 	for (int i = 1; i < nv; ++i)
 	{
-		const float* v = &verts[i*3];
+		const dtCoordinates v( verts[i] );
 		rcVmin(bmin, v);
 		rcVmax(bmax, v);
 
-		bmin[0] = rcClamp( bmin[0], square_min[0], square_max[0] );
-		bmin[2] = rcClamp( bmin[2], square_min[2], square_max[2] );
+		bmin.SetX( rcClamp( bmin.X(), square_min.X(), square_max.X() ) );
+		bmin.SetZ( rcClamp( bmin.Z(), square_min.Z(), square_max.Z() ) );
 
-		bmax[0] = rcClamp( bmax[0], square_min[0], square_max[0] );
-		bmax[2] = rcClamp( bmax[2], square_min[2], square_max[2] );
+		bmax.SetX( rcClamp( bmax.X(), square_min.X(), square_max.X() ) );
+		bmax.SetZ( rcClamp( bmax.Z(), square_min.Z(), square_max.Z() ) );
 	}
 }
 #else // MODIFY_SQUARE_SECTOR
-void rcCalcBounds(const float* verts, int nv, float* bmin, float* bmax)
+void rcCalcBounds(const dtCoordinates* verts, int nv, dtCoordinates& bmin, dtCoordinates& bmax)
 {
 	// Calculate bounding box.
 	rcVcopy(bmin, verts);
 	rcVcopy(bmax, verts);
 	for (int i = 1; i < nv; ++i)
 	{
-		const float* v = &verts[i*3];
+		const dtCoordinates v( verts[i] );
 		rcVmin(bmin, v);
 		rcVmax(bmax, v);
 	}
 }
 #endif // MODIFY_SQUARE_SECTOR
 
-void rcCalcGridSize(const float* bmin, const float* bmax, float cs, int* w, int* h)
+void rcCalcGridSize(const dtCoordinates& bmin, const dtCoordinates& bmax, float cs, int* w, int* h)
 {
-	*w = (int)((bmax[0] - bmin[0])/cs+0.5f);
-	*h = (int)((bmax[2] - bmin[2])/cs+0.5f);
+	*w = (int)((bmax.X() - bmin.X())/cs+0.5f);
+	*h = (int)((bmax.Z() - bmin.Z())/cs+0.5f);
 }
 
 /// @par
@@ -230,7 +230,7 @@ void rcCalcGridSize(const float* bmin, const float* bmax, float cs, int* w, int*
 /// 
 /// @see rcAllocHeightfield, rcHeightfield 
 bool rcCreateHeightfield(rcContext* ctx, rcHeightfield& hf, int width, int height,
-						 const float* bmin, const float* bmax,
+						 const dtCoordinates& bmin, const dtCoordinates& bmax,
 						 float cs, float ch)
 {
 	rcIgnoreUnused(ctx);
@@ -248,9 +248,9 @@ bool rcCreateHeightfield(rcContext* ctx, rcHeightfield& hf, int width, int heigh
 	return true;
 }
 
-static void calcTriNormal(const float* v0, const float* v1, const float* v2, float* norm)
+static void calcTriNormal(const dtCoordinates& v0, const dtCoordinates& v1, const dtCoordinates& v2, dtCoordinates& norm)
 {
-	float e0[3], e1[3];
+	dtCoordinates e0, e1;
 	rcVsub(e0, v1, v0);
 	rcVsub(e1, v2, v0);
 	rcVcross(norm, e0, e1);
@@ -266,25 +266,25 @@ static void calcTriNormal(const float* v0, const float* v1, const float* v2, flo
 /// 
 /// @see rcHeightfield, rcClearUnwalkableTriangles, rcRasterizeTriangles
 void rcMarkWalkableTriangles(rcContext* ctx, const float walkableSlopeAngle,
-							 const float* verts, int /*nv*/,
+							 const dtCoordinates* verts, int /*nv*/,
 							 const int* tris, int nt,
 							 unsigned char* areas)
 {
 	rcIgnoreUnused(ctx);
 	
 	const float walkableThr = cosf(walkableSlopeAngle/180.0f*RC_PI);
-	float norm[3];
+	dtCoordinates norm;
 	
 	for (int i = 0; i < nt; ++i)
 	{
 		const int* tri = &tris[i*3];
-		calcTriNormal(&verts[tri[0]*3], &verts[tri[1]*3], &verts[tri[2]*3], norm);
+		calcTriNormal(verts[tri[0]], verts[tri[1]], verts[tri[2]], norm);
 //#ifdef MODIFY_VOXEL_FLAG
 		const bool terrain = tri[0] < RC_MAX_GROUND_FLOOR_VERTICES && tri[1] < RC_MAX_GROUND_FLOOR_VERTICES && tri[2] < RC_MAX_GROUND_FLOOR_VERTICES;
 //#endif // MODIFY_VOXEL_FLAG
 		// Check if the face is walkable.
 #ifdef MODIFY_VOXEL_FLAG
-		if( walkableThr < norm[1] ) {
+		if( walkableThr < norm.Y() ) {
 			areas[i] = terrain ? RC_TERRAIN_AREA | RC_WALKABLE_AREA : RC_OBJECT_AREA | RC_WALKABLE_AREA;
 		}
 		else {
@@ -311,7 +311,7 @@ void rcMarkWalkableTriangles(rcContext* ctx, const float walkableSlopeAngle,
 /// 
 /// @see rcHeightfield, rcClearUnwalkableTriangles, rcRasterizeTriangles
 void rcClearUnwalkableTriangles(rcContext* ctx, const float walkableSlopeAngle,
-								const float* verts, int /*nv*/,
+								const dtCoordinates* verts, int /*nv*/,
 								const int* tris, int nt,
 								unsigned char* areas)
 {
@@ -319,14 +319,14 @@ void rcClearUnwalkableTriangles(rcContext* ctx, const float walkableSlopeAngle,
 	
 	const float walkableThr = cosf(walkableSlopeAngle/180.0f*RC_PI);
 	
-	float norm[3];
+	dtCoordinates norm;
 	
 	for (int i = 0; i < nt; ++i)
 	{
 		const int* tri = &tris[i*3];
-		calcTriNormal(&verts[tri[0]*3], &verts[tri[1]*3], &verts[tri[2]*3], norm);
+		calcTriNormal(verts[tri[0]], verts[tri[1]], verts[tri[2]], norm);
 		// Check if the face is walkable.
-		if (norm[1] <= walkableThr)
+		if (norm.Y() <= walkableThr)
 			areas[i] = RC_NULL_AREA;
 	}
 }
@@ -381,7 +381,7 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 	chf.maxRegions = 0;
 	rcVcopy(chf.bmin, hf.bmin);
 	rcVcopy(chf.bmax, hf.bmax);
-	chf.bmax[1] += walkableHeight*hf.ch;
+	chf.bmax.SetY( chf.bmax.Y() + walkableHeight*hf.ch );
 	chf.cs = hf.cs;
 	chf.ch = hf.ch;
 	chf.cells = (rcCompactCell*)rcAlloc(sizeof(rcCompactCell)*w*h, RC_ALLOC_PERM);
@@ -881,7 +881,7 @@ void	rcMarkTerrainWalkableUnderFloorSpans( rcContext* ctx, const int walkableCli
 	ctx->stopTimer( RC_TIMER_TEMPORARY );
 }
 
-void	rcFilterUnwalkableUnderFloorObjectInsideSpans( rcContext* ctx, rcHeightfield& solid )
+void	rcFilterUnwalkableUnderFloorObjectInsideSpans( rcContext* /*ctx*/, rcHeightfield& /*solid*/ )
 {
 // 	rcAssert( ctx );
 // 
@@ -948,14 +948,14 @@ void	rcFilterUnwalkableUnderFloorObjectInsideSpans( rcContext* ctx, rcHeightfiel
 // 	ctx->stopTimer( RC_TIMER_TEMPORARY );
 }
 
-void	rcMarkTerrainUnderFloorObjectSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid )
+void	rcMarkTerrainUnderFloorObjectSpans( rcContext* /*ctx*/, const int /*walkableClimb*/, rcHeightfield& /*solid*/ )
 {
 // 	rcFilterUnderFloorObjectSpans( ctx, walkableClimb, solid );
 // 	rcMarkTerrainWalkableUnderFloorSpans( ctx, solid );
 // 	rcFilterUnwalkableUnderFloorObjectInsideSpans( ctx, solid );
 }
 
-void	rcMarkObjectLedgeSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid )
+void	rcMarkObjectLedgeSpans( rcContext* /*ctx*/, const int /*walkableClimb*/, rcHeightfield& /*solid*/ )
 {
 // 	rcAssert( ctx );
 // 
@@ -991,7 +991,7 @@ void	rcMarkObjectLedgeSpans( rcContext* ctx, const int walkableClimb, rcHeightfi
 // 	ctx->stopTimer( RC_TIMER_TEMPORARY );
 }
 
-void	rcMarkExpandObjectLedgeSpans( rcContext* ctx, const int walkableHeight, const int walkableClimb, rcHeightfield& solid )
+void	rcMarkExpandObjectLedgeSpans( rcContext* /*ctx*/, const int /*walkableHeight*/, const int /*walkableClimb*/, rcHeightfield& /*solid*/ )
 {
 // 	rcAssert( ctx );
 // 
@@ -1051,7 +1051,7 @@ void	rcMarkExpandObjectLedgeSpans( rcContext* ctx, const int walkableHeight, con
 }
 
 
-void	rcFilterSpans( rcContext* ctx, const int walkableHeight, const int walkableClimb, rcHeightfield& solid )
+void	rcFilterSpans( rcContext* ctx, const int /*walkableHeight*/, const int /*walkableClimb*/, rcHeightfield& solid )
 {
 	rcAssert( ctx );
 
@@ -1107,7 +1107,7 @@ void	rcMarkSideLedgeSpans( rcContext* ctx, const int walkableClimb, rcHeightfiel
 					}
 					for( rcSpan* ns = solid.spans[dx + dy*w]; ns != NULL; ns = ns->next ) {
 						if( (ns->area & RC_UNWALKABLE_AREA) == RC_UNWALKABLE_AREA ) {
-							const float gap = rcAbs( s->smax - ns->smax );
+							const int gap = rcAbs( static_cast<int>(s->smax) - static_cast<int>(ns->smax) );
 							if( gap <= walkableClimb ) {
 								s->area |= RC_CLIMBABLE_AREA;
 							}
@@ -1180,7 +1180,7 @@ void	rcFilterUnwalkableLowHeightSpans( rcContext* ctx, const int walkableHeight,
 	ctx->stopTimer( RC_TIMER_TEMPORARY );
 }
 
-void	rcFilterUnwalkableLedgeSpans( rcContext* ctx, const int walkableHeight, const int walkableClimb, rcHeightfield& solid )
+void	rcFilterUnwalkableLedgeSpans( rcContext* ctx, const int /*walkableHeight*/, const int walkableClimb, rcHeightfield& solid )
 {
 	rcAssert( ctx );
 
@@ -1188,7 +1188,6 @@ void	rcFilterUnwalkableLedgeSpans( rcContext* ctx, const int walkableHeight, con
 
 	const int w = solid.width;
 	const int h = solid.height;
-	const int MAX_HEIGHT = 0xffff;
 
 	for( int y = 0; y < h; ++y ) {
 		for( int x = 0; x < w; ++x ) {
@@ -1249,11 +1248,11 @@ void	rcFilterUnwalkableAreaSpans( rcContext* ctx, const unsigned char area, rcHe
 }
 //////////////////////////////////////////////////////////////////////////
 
-void	rcTest( const int walkableHeight, const int walkableClimb, rcHeightfield& solid )
+void	rcTest( const int /*walkableHeight*/, const int /*walkableClimb*/, rcHeightfield& /*solid*/ )
 {
-	const int w = solid.width;
-	const int h = solid.height;
-
+// 	const int w = solid.width;
+// 	const int h = solid.height;
+// 
 // 	for( int y = 0; y < h; ++y ) {
 // 		for( int x = 0; x < w; ++x ) {
 // 			for( rcSpan* s = solid.spans[x + y*w]; s != NULL; s = s->next ) {
@@ -1276,16 +1275,16 @@ void	rcTest( const int walkableHeight, const int walkableClimb, rcHeightfield& s
 #endif // MODIFY_VOXEL_FLAG
 
 #ifdef MODIFY_OFF_MESH_CONNECTION
-bool	rcIsOverlapBounds2D( const float* vertexPoint, const float* bmin, const float* bmax )
+bool	rcIsOverlapBounds2D( const dtCoordinates& vertexPoint, const dtCoordinates& bmin, const dtCoordinates& bmax )
 {
-	const float extend[3] = {0.4f, 0.0f, 0.4f};
-	float amin[3] = {0}, amax[3] = {0};
+	const dtCoordinates extend( 0.4f, 0.0f, 0.4f );
+	dtCoordinates amin, amax;
 	rcVsub( amin, vertexPoint, extend );
 	rcVadd( amax, vertexPoint, extend );
 
 	bool overlap = true;
-	overlap = (amin[0] > bmax[0] || amax[0] < bmin[0]) ? false : overlap;
-	overlap = (amin[2] > bmax[2] || amax[2] < bmin[2]) ? false : overlap;
+	overlap = (amin.X() > bmax.X() || amax.X() < bmin.X()) ? false : overlap;
+	overlap = (amin.Z() > bmax.Z() || amax.Z() < bmin.Z()) ? false : overlap;
 	return overlap;
 }
 #endif // MODIFY_OFF_MESH_CONNECTION

@@ -21,6 +21,7 @@
 			OutputDirectory="lib\Debug"
 			IntermediateDirectory="obj\Debug\Detour"
 			ConfigurationType="4"
+			InheritedPropertySheets="C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Language.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Config_Debug.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Target_StaticLinkedExecutable.vsprops"
 			CharacterSet="2"
 			>
 			<Tool
@@ -41,7 +42,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\..\..\Detour\Include;..\..\..\Common"
+				AdditionalIncludeDirectories="..\..\..\Detour\Include"
 				PreprocessorDefinitions="DEBUG;WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS"
 				MinimalRebuild="true"
 				ExceptionHandling="0"
@@ -91,6 +92,7 @@
 			OutputDirectory="lib\Release"
 			IntermediateDirectory="obj\Release\Detour"
 			ConfigurationType="4"
+			InheritedPropertySheets="C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Language.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Config_Release.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Target_StaticLinkedExecutable.vsprops"
 			CharacterSet="2"
 			>
 			<Tool
@@ -111,7 +113,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="3"
-				AdditionalIncludeDirectories="..\..\..\Detour\Include;..\..\..\Common"
+				AdditionalIncludeDirectories="..\..\..\Detour\Include"
 				PreprocessorDefinitions="NDEBUG;WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS"
 				StringPooling="true"
 				ExceptionHandling="0"
@@ -178,6 +180,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\..\Detour\Include\DetourCoordinates.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\..\Detour\Include\DetourMath.h"
 					>
 				</File>
@@ -211,6 +217,10 @@
 				</File>
 				<File
 					RelativePath="..\..\..\Detour\Source\DetourCommon.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\..\Detour\Source\DetourCoordinates.cpp"
 					>
 				</File>
 				<File

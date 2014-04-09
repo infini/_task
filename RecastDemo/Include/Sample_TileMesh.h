@@ -23,6 +23,8 @@
 #include "DetourNavMesh.h"
 #include "Recast.h"
 #include "ChunkyTriMesh.h"
+#include <DetourCoordinates.h>
+
 
 class Sample_TileMesh : public Sample
 {
@@ -69,13 +71,13 @@ protected:
 	float m_tileSize;
 	
 	unsigned int m_tileCol;
-	float m_tileBmin[3];
-	float m_tileBmax[3];
+	dtCoordinates m_tileBmin;
+	dtCoordinates m_tileBmax;
 	float m_tileBuildTime;
 	float m_tileMemUsage;
 	int m_tileTriCount;
 
-	unsigned char* buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize);
+	unsigned char* buildTileMesh(const int tx, const int ty, const dtCoordinates& bmin, const dtCoordinates& bmax, int& dataSize);
 	
 	void cleanup();
 	
@@ -97,10 +99,10 @@ public:
 	virtual void save( const char* path )	{	saveAll( path, m_navMesh );	}
 #endif // DIVISION_BUILD
 	
-	void getTilePos(const float* pos, int& tx, int& ty);
+	void getTilePos(const dtCoordinates& pos, int& tx, int& ty);
 	
-	void buildTile(const float* pos);
-	void removeTile(const float* pos);
+	void buildTile(const dtCoordinates& pos);
+	void removeTile(const dtCoordinates& pos);
 	void buildAllTiles();
 	void removeAllTiles();
 };

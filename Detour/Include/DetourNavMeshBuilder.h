@@ -46,7 +46,7 @@ struct dtNavMeshCreateParams
 	/// @{
 
 	const unsigned int* detailMeshes;		///< The height detail sub-mesh data. [Size: 4 * #polyCount]
-	const float* detailVerts;				///< The detail mesh vertices. [Size: 3 * #detailVertsCount] [Unit: wu]
+	const dtCoordinates* detailVerts;				///< The detail mesh vertices. [Size: 3 * #detailVertsCount] [Unit: wu]
 	int detailVertsCount;					///< The number of vertices in the detail mesh.
 	const unsigned char* detailTris;		///< The detail mesh triangles. [Size: 4 * #detailTriCount]
 	int detailTriCount;						///< The number of triangles in the detail mesh.
@@ -58,6 +58,7 @@ struct dtNavMeshCreateParams
 	/// at least one of which resides within a navigation mesh polygon.
 	/// @{
 
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	/// Off-mesh connection vertices. [(ax, ay, az, bx, by, bz) * #offMeshConCount] [Unit: wu]
 	const float* offMeshConVerts;
 	/// Off-mesh connection radii. [Size: #offMeshConCount] [Unit: wu]
@@ -75,6 +76,7 @@ struct dtNavMeshCreateParams
 	const unsigned int* offMeshConUserID;
 	/// The number of off-mesh connections. [Limit: >= 0]
 	int offMeshConCount;
+#endif // !MODIFY_OFF_MESH_CONNECTION
 
 	/// @}
 	/// @name Tile Attributes
@@ -85,8 +87,8 @@ struct dtNavMeshCreateParams
 	int tileX;				///< The tile's x-grid location within the multi-tile destination mesh. (Along the x-axis.)
 	int tileY;				///< The tile's y-grid location within the multi-tile desitation mesh. (Along the z-axis.)
 	int tileLayer;			///< The tile's layer within the layered destination mesh. [Limit: >= 0] (Along the y-axis.)
-	float bmin[3];			///< The minimum bounds of the tile. [(x, y, z)] [Unit: wu]
-	float bmax[3];			///< The maximum bounds of the tile. [(x, y, z)] [Unit: wu]
+	dtCoordinates bmin;		///< The minimum bounds of the tile. [(x, y, z)] [Unit: wu]
+	dtCoordinates bmax;		///< The maximum bounds of the tile. [(x, y, z)] [Unit: wu]
 
 	/// @}
 	/// @name General Configuration Attributes
@@ -121,12 +123,12 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 /// Swaps the endianess of the tile data's header (#dtMeshHeader).
 ///  @param[in,out]	data		The tile data array.
 ///  @param[in]		dataSize	The size of the data array.
-bool dtNavMeshHeaderSwapEndian(unsigned char* data, const int dataSize);
+/*bool dtNavMeshHeaderSwapEndian(unsigned char* data, const int dataSize);*/
 
 /// Swaps endianess of the tile data.
 ///  @param[in,out]	data		The tile data array.
 ///  @param[in]		dataSize	The size of the data array.
-bool dtNavMeshDataSwapEndian(unsigned char* data, const int dataSize);
+/*bool dtNavMeshDataSwapEndian(unsigned char* data, const int dataSize);*/
 
 #endif // DETOURNAVMESHBUILDER_H
 

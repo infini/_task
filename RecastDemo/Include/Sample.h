@@ -21,6 +21,7 @@
 
 #include "Recast.h"
 #include "SampleInterfaces.h"
+#include <DetourCoordinates.h>
 
 
 /// Tool types.
@@ -66,7 +67,7 @@ struct SampleTool
 	virtual void init(class Sample* sample) = 0;
 	virtual void reset() = 0;
 	virtual void handleMenu() = 0;
-	virtual void handleClick(const float* s, const float* p, bool shift) = 0;
+	virtual void handleClick(const dtCoordinates& s, const dtCoordinates& p, bool shift) = 0;
 	virtual void handleRender() = 0;
 	virtual void handleRenderOverlay(double* proj, double* model, int* view) = 0;
 	virtual void handleToggle() = 0;
@@ -142,7 +143,7 @@ public:
 	virtual void handleSettings();
 	virtual void handleTools();
 	virtual void handleDebugMode();
-	virtual void handleClick(const float* s, const float* p, bool shift);
+	virtual void handleClick(const dtCoordinates& s, const dtCoordinates& p, bool shift);
 	virtual void handleToggle();
 	virtual void handleStep();
 	virtual void handleRender();
@@ -158,8 +159,8 @@ public:
 	virtual float getAgentRadius() { return m_agentRadius; }
 	virtual float getAgentHeight() { return m_agentHeight; }
 	virtual float getAgentClimb() { return m_agentMaxClimb; }
-	virtual const float* getBoundsMin();
-	virtual const float* getBoundsMax();
+	virtual const dtCoordinates* getBoundsMin();
+	virtual const dtCoordinates* getBoundsMax();
 #ifdef DIVISION_BUILD
 	virtual void save( const char* /*path*/ )	{}
 #endif // DIVISION_BUILD

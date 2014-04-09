@@ -38,33 +38,33 @@
 // Quick and dirty convex hull.
 
 // Returns true if 'c' is left of line 'a'-'b'.
-inline bool left(const float* a, const float* b, const float* c)
+inline bool left(const dtCoordinates& a, const dtCoordinates& b, const dtCoordinates& c)
 { 
-	const float u1 = b[0] - a[0];
-	const float v1 = b[2] - a[2];
-	const float u2 = c[0] - a[0];
-	const float v2 = c[2] - a[2];
+	const float u1 = b.X() - a.X();
+	const float v1 = b.Z() - a.Z();
+	const float u2 = c.X() - a.X();
+	const float v2 = c.Z() - a.Z();
 	return u1 * v2 - v1 * u2 < 0;
 }
 
 // Returns true if 'a' is more lower-left than 'b'.
-inline bool cmppt(const float* a, const float* b)
+inline bool cmppt(const dtCoordinates& a, const dtCoordinates& b)
 {
-	if (a[0] < b[0]) return true;
-	if (a[0] > b[0]) return false;
-	if (a[2] < b[2]) return true;
-	if (a[2] > b[2]) return false;
+	if (a.X() < b.X()) return true;
+	if (a.X() > b.X()) return false;
+	if (a.Z() < b.Z()) return true;
+	if (a.Z() > b.Z()) return false;
 	return false;
 }
 // Calculates convex hull on xz-plane of points on 'pts',
 // stores the indices of the resulting hull in 'out' and
 // returns number of points on hull.
-static int convexhull(const float* pts, int npts, int* out)
+static int convexhull(const dtCoordinates* pts, int npts, int* out)
 {
 	// Find lower-leftmost point.
 	int hull = 0;
 	for (int i = 1; i < npts; ++i)
-		if (cmppt(&pts[i*3], &pts[hull*3]))
+		if (cmppt(pts[i], pts[hull]))
 			hull = i;
 	// Gift wrap hull.
 	int endpt = 0;
@@ -74,7 +74,7 @@ static int convexhull(const float* pts, int npts, int* out)
 		out[i++] = hull;
 		endpt = 0;
 		for (int j = 1; j < npts; ++j)
-			if (hull == endpt || left(&pts[hull*3], &pts[endpt*3], &pts[j*3]))
+			if (hull == endpt || left(pts[hull], pts[endpt], pts[j]))
 				endpt = j;
 		hull = endpt;
 	}
@@ -83,15 +83,15 @@ static int convexhull(const float* pts, int npts, int* out)
 	return i;
 }
 
-static int pointInPoly(int nvert, const float* verts, const float* p)
+static int pointInPoly(int nvert, const dtCoordinates* verts, const dtCoordinates& p)
 {
 	int i, j, c = 0;
 	for (i = 0, j = nvert-1; i < nvert; j = i++)
 	{
-		const float* vi = &verts[i*3];
-		const float* vj = &verts[j*3];
-		if (((vi[2] > p[2]) != (vj[2] > p[2])) &&
-			(p[0] < (vj[0]-vi[0]) * (p[2]-vi[2]) / (vj[2]-vi[2]) + vi[0]) )
+		const dtCoordinates vi( verts[i] );
+		const dtCoordinates vj( verts[j] );
+		if (((vi.Z() > p.Z()) != (vj.Z() > p.Z())) &&
+			(p.X() < (vj.X()-vi.X()) * (p.Z()-vi.Z()) / (vj.Z()-vi.Z()) + vi.X()) )
 			c = !c;
 	}
 	return c;
@@ -153,7 +153,7 @@ void ConvexVolumeTool::handleMenu()
 	}
 }
 
-void ConvexVolumeTool::handleClick(const float* /*s*/, const float* p, bool shift)
+void ConvexVolumeTool::handleClick(const dtCoordinates& /*s*/, const dtCoordinates& p, bool shift)
 {
 	if (!m_sample) return;
 	InputGeom* geom = m_sample->getInputGeom();
@@ -167,7 +167,7 @@ void ConvexVolumeTool::handleClick(const float* /*s*/, const float* p, bool shif
 		for (int i = 0; i < geom->getConvexVolumeCount(); ++i)
 		{
 			if (pointInPoly(vols[i].nverts, vols[i].verts, p) &&
-							p[1] >= vols[i].hmin && p[1] <= vols[i].hmax)
+							p.Y() >= vols[i].hmin && p.Y() <= vols[i].hmax)
 			{
 				nearestIndex = i;
 			}
@@ -183,24 +183,24 @@ void ConvexVolumeTool::handleClick(const float* /*s*/, const float* p, bool shif
 		// Create
 
 		// If clicked on that last pt, create the shape.
-		if (m_npts && rcVdistSqr(p, &m_pts[(m_npts-1)*3]) < rcSqr(0.2f))
+		if (m_npts && rcVdistSqr(p, m_pts[(m_npts-1)]) < rcSqr(0.2f))
 		{
 			if (m_nhull > 2)
 			{
 				// Create shape.
-				float verts[MAX_PTS*3];
+				dtCoordinates verts[MAX_PTS];
 				for (int i = 0; i < m_nhull; ++i)
-					rcVcopy(&verts[i*3], &m_pts[m_hull[i]*3]);
+					rcVcopy(verts[i], m_pts[m_hull[i]]);
 					
 				float minh = FLT_MAX, maxh = 0;
 				for (int i = 0; i < m_nhull; ++i)
-					minh = rcMin(minh, verts[i*3+1]);
+					minh = rcMin(minh, verts[i].Y());
 				minh -= m_boxDescent;
 				maxh = minh + m_boxHeight;
 
 				if (m_polyOffset > 0.01f)
 				{
-					float offset[MAX_PTS*2*3];
+					dtCoordinates offset[MAX_PTS*2];
 					int noffset = rcOffsetPoly(verts, m_nhull, m_polyOffset, offset, MAX_PTS*2);
 					if (noffset > 0)
 						geom->addConvexVolume(offset, noffset, minh, maxh, (unsigned char)m_areaType);
@@ -219,7 +219,7 @@ void ConvexVolumeTool::handleClick(const float* /*s*/, const float* p, bool shif
 			// Add new point 
 			if (m_npts < MAX_PTS)
 			{
-				rcVcopy(&m_pts[m_npts*3], p);
+				rcVcopy(m_pts[m_npts], p);
 				m_npts++;
 				// Update hull.
 				if (m_npts > 1)
@@ -251,7 +251,7 @@ void ConvexVolumeTool::handleRender()
 	// Find height extents of the shape.
 	float minh = FLT_MAX, maxh = 0;
 	for (int i = 0; i < m_npts; ++i)
-		minh = rcMin(minh, m_pts[i*3+1]);
+		minh = rcMin(minh, m_pts[i].Y());
 	minh -= m_boxDescent;
 	maxh = minh + m_boxHeight;
 
@@ -261,21 +261,21 @@ void ConvexVolumeTool::handleRender()
 		unsigned int col = duRGBA(255,255,255,255);
 		if (i == m_npts-1)
 			col = duRGBA(240,32,16,255);
-		dd.vertex(m_pts[i*3+0],m_pts[i*3+1]+0.1f,m_pts[i*3+2], col);
+		dd.vertex(m_pts[i].X(),m_pts[i].Y()+0.1f,m_pts[i].Z(), col);
 	}
 	dd.end();
 
 	dd.begin(DU_DRAW_LINES, 2.0f);
 	for (int i = 0, j = m_nhull-1; i < m_nhull; j = i++)
 	{
-		const float* vi = &m_pts[m_hull[j]*3];
-		const float* vj = &m_pts[m_hull[i]*3];
-		dd.vertex(vj[0],minh,vj[2], duRGBA(255,255,255,64));
-		dd.vertex(vi[0],minh,vi[2], duRGBA(255,255,255,64));
-		dd.vertex(vj[0],maxh,vj[2], duRGBA(255,255,255,64));
-		dd.vertex(vi[0],maxh,vi[2], duRGBA(255,255,255,64));
-		dd.vertex(vj[0],minh,vj[2], duRGBA(255,255,255,64));
-		dd.vertex(vj[0],maxh,vj[2], duRGBA(255,255,255,64));
+		const dtCoordinates vi( m_pts[m_hull[j]] );
+		const dtCoordinates vj( m_pts[m_hull[i]] );
+		dd.vertex(vj.X(),minh,vj.Z(), duRGBA(255,255,255,64));
+		dd.vertex(vi.X(),minh,vi.Z(), duRGBA(255,255,255,64));
+		dd.vertex(vj.X(),maxh,vj.Z(), duRGBA(255,255,255,64));
+		dd.vertex(vi.X(),maxh,vi.Z(), duRGBA(255,255,255,64));
+		dd.vertex(vj.X(),minh,vj.Z(), duRGBA(255,255,255,64));
+		dd.vertex(vj.X(),maxh,vj.Z(), duRGBA(255,255,255,64));
 	}
 	dd.end();	
 }

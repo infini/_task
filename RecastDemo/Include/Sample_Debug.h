@@ -22,6 +22,7 @@
 #include "Sample.h"
 #include "DetourNavMesh.h"
 #include "Recast.h"
+#include <DetourCoordinates.h>
 
 /// Sample used for random debugging.
 class Sample_Debug : public Sample
@@ -31,9 +32,9 @@ protected:
 	rcContourSet* m_cset;
 	rcPolyMesh* m_pmesh;
 
-	float m_ext[3];
-	float m_center[3];
-	float m_bmin[3], m_bmax[3];
+	dtCoordinates m_ext;
+	dtCoordinates m_center;
+	dtCoordinates m_bmin, m_bmax;
 	dtPolyRef m_ref;
 	
 public:
@@ -43,15 +44,15 @@ public:
 	virtual void handleSettings();
 	virtual void handleTools();
 	virtual void handleDebugMode();
-	virtual void handleClick(const float* s, const float* p, bool shift);
+	virtual void handleClick(const dtCoordinates& s, const dtCoordinates& p, bool shift);
 	virtual void handleToggle();
 	virtual void handleRender();
 	virtual void handleRenderOverlay(double* proj, double* model, int* view);
 	virtual void handleMeshChanged(class InputGeom* geom);
 	virtual bool handleBuild();
 
-	virtual const float* getBoundsMin();
-	virtual const float* getBoundsMax();
+	virtual const dtCoordinates* getBoundsMin();
+	virtual const dtCoordinates* getBoundsMax();
 };
 
 

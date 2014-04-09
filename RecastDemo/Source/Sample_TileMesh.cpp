@@ -36,6 +36,7 @@
 #include "OffMeshConnectionTool.h"
 #include "ConvexVolumeTool.h"
 #include "CrowdTool.h"
+#include <DetourCoordinates.h>
 #include <string>
 
 #ifdef VARIABLE_TILE_SIZE
@@ -75,7 +76,7 @@ inline unsigned int ilog2(unsigned int v)
 class NavMeshTileTool : public SampleTool
 {
 	Sample_TileMesh* m_sample;
-	float m_hitPos[3];
+	dtCoordinates m_hitPos;
 	bool m_hitPosSet;
 	float m_agentRadius;
 	
@@ -86,7 +87,6 @@ public:
 		m_hitPosSet(false),
 		m_agentRadius(0)
 	{
-		m_hitPos[0] = m_hitPos[1] = m_hitPos[2] = 0;
 	}
 
 	virtual ~NavMeshTileTool()
@@ -117,7 +117,7 @@ public:
 		}
 	}
 
-	virtual void handleClick(const float* /*s*/, const float* p, bool shift)
+	virtual void handleClick(const dtCoordinates& /*s*/, const dtCoordinates& p, bool shift)
 	{
 		m_hitPosSet = true;
 		rcVcopy(m_hitPos,p);
@@ -144,12 +144,12 @@ public:
 			glColor4ub(0,0,0,128);
 			glLineWidth(2.0f);
 			glBegin(GL_LINES);
-			glVertex3f(m_hitPos[0]-s,m_hitPos[1]+0.1f,m_hitPos[2]);
-			glVertex3f(m_hitPos[0]+s,m_hitPos[1]+0.1f,m_hitPos[2]);
-			glVertex3f(m_hitPos[0],m_hitPos[1]-s+0.1f,m_hitPos[2]);
-			glVertex3f(m_hitPos[0],m_hitPos[1]+s+0.1f,m_hitPos[2]);
-			glVertex3f(m_hitPos[0],m_hitPos[1]+0.1f,m_hitPos[2]-s);
-			glVertex3f(m_hitPos[0],m_hitPos[1]+0.1f,m_hitPos[2]+s);
+			glVertex3f(m_hitPos.X()-s,m_hitPos.Y()+0.1f,m_hitPos.Z());
+			glVertex3f(m_hitPos.X()+s,m_hitPos.Y()+0.1f,m_hitPos.Z());
+			glVertex3f(m_hitPos.X(),m_hitPos.Y()-s+0.1f,m_hitPos.Z());
+			glVertex3f(m_hitPos.X(),m_hitPos.Y()+s+0.1f,m_hitPos.Z());
+			glVertex3f(m_hitPos.X(),m_hitPos.Y()+0.1f,m_hitPos.Z()-s);
+			glVertex3f(m_hitPos.X(),m_hitPos.Y()+0.1f,m_hitPos.Z()+s);
 			glEnd();
 			glLineWidth(1.0f);
 		}
@@ -158,7 +158,7 @@ public:
 	virtual void handleRenderOverlay(double* proj, double* model, int* view)
 	{
 		GLdouble x, y, z;
-		if (m_hitPosSet && gluProject((GLdouble)m_hitPos[0], (GLdouble)m_hitPos[1], (GLdouble)m_hitPos[2],
+		if (m_hitPosSet && gluProject((GLdouble)m_hitPos.X(), (GLdouble)m_hitPos.Y(), (GLdouble)m_hitPos.Z(),
 									  model, proj, view, &x, &y, &z))
 		{
 			int tx=0, ty=0;
@@ -197,8 +197,6 @@ Sample_TileMesh::Sample_TileMesh() :
 	m_tileTriCount(0)
 {
 	resetCommonSettings();
-	memset(m_tileBmin, 0, sizeof(m_tileBmin));
-	memset(m_tileBmax, 0, sizeof(m_tileBmax));
 	
 	setTool(new NavMeshTileTool);
 }
@@ -371,8 +369,8 @@ void Sample_TileMesh::handleSettings()
 	
 	if (m_geom)
 	{
-		const float* bmin = m_geom->getMeshBoundsMin();
-		const float* bmax = m_geom->getMeshBoundsMax();
+		const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+		const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
 		char text[64];
 		int gw = 0, gh = 0;
 		rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
@@ -575,15 +573,17 @@ void Sample_TileMesh::handleRender()
 		duDebugDrawTriMeshSlope(&dd, m_geom->getMesh()->getVerts(), m_geom->getMesh()->getVertCount(),
 								m_geom->getMesh()->getTris(), m_geom->getMesh()->getNormals(), m_geom->getMesh()->getTriCount(),
 								m_agentMaxSlope, texScale);
+#ifndef MODIFY_OFF_MESH_CONNECTION
 		m_geom->drawOffMeshConnections(&dd);
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	}
 		
 	glDepthMask(GL_FALSE);
 	
 	// Draw bounds
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
-	duDebugDrawBoxWire(&dd, bmin[0],bmin[1],bmin[2], bmax[0],bmax[1],bmax[2], duRGBA(255,255,255,128), 1.0f);
+	const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+	const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
+	duDebugDrawBoxWire(&dd, bmin.X(),bmin.Y(),bmin.Z(), bmax.X(),bmax.Y(),bmax.Z(), duRGBA(255,255,255,128), 1.0f);
 	
 	// Tiling grid.
 	int gw = 0, gh = 0;
@@ -591,11 +591,11 @@ void Sample_TileMesh::handleRender()
 	const int tw = (gw + (int)m_tileSize-1) / (int)m_tileSize;
 	const int th = (gh + (int)m_tileSize-1) / (int)m_tileSize;
 	const float s = m_tileSize*m_cellSize;
-	duDebugDrawGridXZ(&dd, bmin[0],bmin[1],bmin[2], tw,th, s, duRGBA(0,0,0,64), 1.0f);
+	duDebugDrawGridXZ(&dd, bmin.X(),bmin.Y(),bmin.Z(), tw,th, s, duRGBA(0,0,0,64), 1.0f);
 	
 	// Draw active tile
-	duDebugDrawBoxWire(&dd, m_tileBmin[0],m_tileBmin[1],m_tileBmin[2],
-					   m_tileBmax[0],m_tileBmax[1],m_tileBmax[2], m_tileCol, 1.0f);
+	duDebugDrawBoxWire(&dd, m_tileBmin.X(),m_tileBmin.Y(),m_tileBmin.Z(),
+					   m_tileBmax.X(),m_tileBmax.Y(),m_tileBmax.Z(), m_tileCol, 1.0f);
 		
 	if (m_navMesh && m_navQuery &&
 		(m_drawMode == DRAWMODE_NAVMESH ||
@@ -694,7 +694,7 @@ void Sample_TileMesh::handleRenderOverlay(double* proj, double* model, int* view
 	GLdouble x, y, z;
 	
 	// Draw start and end point labels
-	if (m_tileBuildTime > 0.0f && gluProject((GLdouble)(m_tileBmin[0]+m_tileBmax[0])/2, (GLdouble)(m_tileBmin[1]+m_tileBmax[1])/2, (GLdouble)(m_tileBmin[2]+m_tileBmax[2])/2,
+	if (m_tileBuildTime > 0.0f && gluProject((GLdouble)(m_tileBmin.X()+m_tileBmax.X())/2, (GLdouble)(m_tileBmin.Y()+m_tileBmax.Y())/2, (GLdouble)(m_tileBmin.Z()+m_tileBmax.Z())/2,
 											 model, proj, view, &x, &y, &z))
 	{
 		char text[32];
@@ -743,10 +743,10 @@ bool Sample_TileMesh::handleBuild()
 	}
 
 #ifdef VARIABLE_TILE_SIZE
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
+	const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+	const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
 	std::vector< std::pair<RANGE_TILE_PER_VERTICES, int> > tableCountTiles;
-	const int width = static_cast<int>( ceilf((bmax[0] - bmin[0]) / m_cellSize) );
+	const int width = static_cast<int>( /*ceilf*/((bmax.X() - bmin.X()) / m_cellSize) );
 
 	RANGE_TILE_PER_VERTICES range;
 	range.maxCountTiles = INT_MAX;
@@ -775,7 +775,7 @@ bool Sample_TileMesh::handleBuild()
 	// temporary
 	if( countVerts == 0 ) {
 		m_cellSize = 1.0f;
-		m_tileSize = ceilf( (bmax[0] - bmin[0]) / m_cellSize );
+		m_tileSize = ceilf( (bmax.X() - bmin.X()) / m_cellSize );
 	}
 
 	int gw = 0, gh = 0;
@@ -832,25 +832,25 @@ bool Sample_TileMesh::handleBuild()
 	return true;
 }
 
-void Sample_TileMesh::buildTile(const float* pos)
+void Sample_TileMesh::buildTile(const dtCoordinates& pos)
 {
 	if (!m_geom) return;
 	if (!m_navMesh) return;
 		
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
+	const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+	const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
 	
 	const float ts = m_tileSize*m_cellSize;
-	const int tx = (int)((pos[0] - bmin[0]) / ts);
-	const int ty = (int)((pos[2] - bmin[2]) / ts);
+	const int tx = (int)((pos.X() - bmin.X()) / ts);
+	const int ty = (int)((pos.Z() - bmin.Z()) / ts);
 	
-	m_tileBmin[0] = bmin[0] + tx*ts;
-	m_tileBmin[1] = bmin[1];
-	m_tileBmin[2] = bmin[2] + ty*ts;
+	m_tileBmin.SetX( bmin.X() + tx*ts );
+	m_tileBmin.SetY( bmin.Y() );
+	m_tileBmin.SetZ( bmin.Z() + ty*ts );
 	
-	m_tileBmax[0] = bmin[0] + (tx+1)*ts;
-	m_tileBmax[1] = bmax[1];
-	m_tileBmax[2] = bmin[2] + (ty+1)*ts;
+	m_tileBmax.SetX( bmin.X() + (tx+1)*ts );
+	m_tileBmax.SetY( bmax.Y() );
+	m_tileBmax.SetZ( bmin.Z() + (ty+1)*ts );
 	
 	m_tileCol = duRGBA(255,255,255,64);
 	
@@ -874,36 +874,36 @@ void Sample_TileMesh::buildTile(const float* pos)
 	m_ctx->dumpLog("Build Tile (%d,%d):", tx,ty);
 }
 
-void Sample_TileMesh::getTilePos(const float* pos, int& tx, int& ty)
+void Sample_TileMesh::getTilePos(const dtCoordinates& pos, int& tx, int& ty)
 {
 	if (!m_geom) return;
 	
-	const float* bmin = m_geom->getMeshBoundsMin();
+	const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
 	
 	const float ts = m_tileSize*m_cellSize;
-	tx = (int)((pos[0] - bmin[0]) / ts);
-	ty = (int)((pos[2] - bmin[2]) / ts);
+	tx = (int)((pos.X() - bmin.X()) / ts);
+	ty = (int)((pos.Z() - bmin.Z()) / ts);
 }
 
-void Sample_TileMesh::removeTile(const float* pos)
+void Sample_TileMesh::removeTile(const dtCoordinates& pos)
 {
 	if (!m_geom) return;
 	if (!m_navMesh) return;
 	
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
+	const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+	const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
 
 	const float ts = m_tileSize*m_cellSize;
-	const int tx = (int)((pos[0] - bmin[0]) / ts);
-	const int ty = (int)((pos[2] - bmin[2]) / ts);
+	const int tx = (int)((pos.X() - bmin.X()) / ts);
+	const int ty = (int)((pos.Z() - bmin.Z()) / ts);
 	
-	m_tileBmin[0] = bmin[0] + tx*ts;
-	m_tileBmin[1] = bmin[1];
-	m_tileBmin[2] = bmin[2] + ty*ts;
+	m_tileBmin.SetX( bmin.X() + tx*ts );
+	m_tileBmin.SetY( bmin.Y() );
+	m_tileBmin.SetZ( bmin.Z() + ty*ts );
 	
-	m_tileBmax[0] = bmin[0] + (tx+1)*ts;
-	m_tileBmax[1] = bmax[1];
-	m_tileBmax[2] = bmin[2] + (ty+1)*ts;
+	m_tileBmax.SetX( bmin.X() + (tx+1)*ts );
+	m_tileBmax.SetY( bmax.Y() );
+	m_tileBmax.SetZ( bmin.Z() + (ty+1)*ts );
 	
 	m_tileCol = duRGBA(128,32,16,64);
 	
@@ -915,8 +915,8 @@ void Sample_TileMesh::buildAllTiles()
 	if (!m_geom) return;
 	if (!m_navMesh) return;
 	
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
+	const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+	const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
 	int gw = 0, gh = 0;
 	rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
 	const int ts = (int)m_tileSize;
@@ -932,13 +932,13 @@ void Sample_TileMesh::buildAllTiles()
 	{
 		for (int x = 0; x < tw; ++x)
 		{
-			m_tileBmin[0] = bmin[0] + x*tcs;
-			m_tileBmin[1] = bmin[1];
-			m_tileBmin[2] = bmin[2] + y*tcs;
+			m_tileBmin.SetX( bmin.X() + x*tcs );
+			m_tileBmin.SetY( bmin.Y() );
+			m_tileBmin.SetZ( bmin.Z() + y*tcs );
 			
-			m_tileBmax[0] = bmin[0] + (x+1)*tcs;
-			m_tileBmax[1] = bmax[1];
-			m_tileBmax[2] = bmin[2] + (y+1)*tcs;
+			m_tileBmax.SetX( bmin.X() + (x+1)*tcs );
+			m_tileBmax.SetY( bmax.Y() );
+			m_tileBmax.SetZ( bmin.Z() + (y+1)*tcs );
 			
 			int dataSize = 0;
 			unsigned char* data = buildTileMesh(x, y, m_tileBmin, m_tileBmax, dataSize);
@@ -967,8 +967,8 @@ void Sample_TileMesh::buildAllTiles()
 
 void Sample_TileMesh::removeAllTiles()
 {
-	const float* bmin = m_geom->getMeshBoundsMin();
-	const float* bmax = m_geom->getMeshBoundsMax();
+	const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+	const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
 	int gw = 0, gh = 0;
 	rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
 	const int ts = (int)m_tileSize;
@@ -981,7 +981,7 @@ void Sample_TileMesh::removeAllTiles()
 }
 
 
-unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const float* bmin, const float* bmax, int& dataSize)
+unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const dtCoordinates& bmin, const dtCoordinates& bmax, int& dataSize)
 {
 	if (!m_geom || !m_geom->getMesh() || !m_geom->getChunkyMesh())
 	{
@@ -994,7 +994,7 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 	
 	cleanup();
 	
-	const float* verts = m_geom->getMesh()->getVerts();
+	const dtCoordinates* verts = m_geom->getMesh()->getVerts();
 	const int nverts = m_geom->getMesh()->getVertCount();
 	const int ntris = m_geom->getMesh()->getTriCount();
 	const rcChunkyTriMesh* chunkyMesh = m_geom->getChunkyMesh();
@@ -1021,10 +1021,10 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 	
 	rcVcopy(m_cfg.bmin, bmin);
 	rcVcopy(m_cfg.bmax, bmax);
-	m_cfg.bmin[0] -= m_cfg.borderSize*m_cfg.cs;
-	m_cfg.bmin[2] -= m_cfg.borderSize*m_cfg.cs;
-	m_cfg.bmax[0] += m_cfg.borderSize*m_cfg.cs;
-	m_cfg.bmax[2] += m_cfg.borderSize*m_cfg.cs;
+	m_cfg.bmin.SetX( m_cfg.bmin.X() - m_cfg.borderSize*m_cfg.cs );
+	m_cfg.bmin.SetZ( m_cfg.bmin.Z() - m_cfg.borderSize*m_cfg.cs );
+	m_cfg.bmax.SetX( m_cfg.bmax.X() + m_cfg.borderSize*m_cfg.cs );
+	m_cfg.bmax.SetZ( m_cfg.bmax.Z() + m_cfg.borderSize*m_cfg.cs );
 	
 	// Reset build times gathering.
 	m_ctx->resetTimers();
@@ -1060,10 +1060,10 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 	}
 	
 	float tbmin[2], tbmax[2];
-	tbmin[0] = m_cfg.bmin[0];
-	tbmin[1] = m_cfg.bmin[2];
-	tbmax[0] = m_cfg.bmax[0];
-	tbmax[1] = m_cfg.bmax[2];
+	tbmin[0] = m_cfg.bmin.X();
+	tbmin[1] = m_cfg.bmin.Z();
+	tbmax[0] = m_cfg.bmax.X();
+	tbmax[1] = m_cfg.bmax.Z();
 	int cid[512];// TODO: Make grow when returning too many items.
 	const int ncid = rcGetChunksOverlappingRect(chunkyMesh, tbmin, tbmax, cid, 512);
 	if (!ncid) {
@@ -1258,6 +1258,7 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 		params.detailVertsCount = m_dmesh->nverts;
 		params.detailTris = m_dmesh->tris;
 		params.detailTriCount = m_dmesh->ntris;
+#ifndef MODIFY_OFF_MESH_CONNECTION
 		params.offMeshConVerts = m_geom->getOffMeshConnectionVerts();
 		params.offMeshConRad = m_geom->getOffMeshConnectionRads();
 		params.offMeshConDir = m_geom->getOffMeshConnectionDirs();
@@ -1265,6 +1266,7 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 		params.offMeshConFlags = m_geom->getOffMeshConnectionFlags();
 		params.offMeshConUserID = m_geom->getOffMeshConnectionId();
 		params.offMeshConCount = m_geom->getOffMeshConnectionCount();
+#endif // !MODIFY_OFF_MESH_CONNECTION
 		params.walkableHeight = m_agentHeight;
 		params.walkableRadius = m_agentRadius;
 		params.walkableClimb = m_agentMaxClimb;

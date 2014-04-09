@@ -19,6 +19,8 @@
 #ifndef DETOURCOMMON_H
 #define DETOURCOMMON_H
 
+#include "DetourCoordinates.h"
+
 /**
 @defgroup detour Detour
 
@@ -84,20 +86,20 @@ float dtSqrt(float x);
 ///  @param[out]	dest	The cross product. [(x, y, z)]
 ///  @param[in]		v1		A Vector [(x, y, z)]
 ///  @param[in]		v2		A vector [(x, y, z)]
-inline void dtVcross(float* dest, const float* v1, const float* v2)
+inline void dtVcross(dtCoordinates& dest, const dtCoordinates& v1, const dtCoordinates& v2)
 {
-	dest[0] = v1[1]*v2[2] - v1[2]*v2[1];
-	dest[1] = v1[2]*v2[0] - v1[0]*v2[2];
-	dest[2] = v1[0]*v2[1] - v1[1]*v2[0]; 
+	dest.SetX( v1.Y()*v2.Z() - v1.Z()*v2.Y() );
+	dest.SetY( v1.Z()*v2.X() - v1.X()*v2.Z() );
+	dest.SetZ( v1.X()*v2.Y() - v1.Y()*v2.X() );
 }
 
 /// Derives the dot product of two vectors. (@p v1 . @p v2)
 ///  @param[in]		v1	A Vector [(x, y, z)]
 ///  @param[in]		v2	A vector [(x, y, z)]
 /// @return The dot product.
-inline float dtVdot(const float* v1, const float* v2)
+inline float dtVdot(const dtCoordinates& v1, const dtCoordinates& v2)
 {
-	return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
+	return v1.X()*v2.X() + v1.Y()*v2.Y() + v1.Z()*v2.Z();
 }
 
 /// Performs a scaled vector addition. (@p v1 + (@p v2 * @p s))
@@ -105,11 +107,11 @@ inline float dtVdot(const float* v1, const float* v2)
 ///  @param[in]		v1		The base vector. [(x, y, z)]
 ///  @param[in]		v2		The vector to scale and add to @p v1. [(x, y, z)]
 ///  @param[in]		s		The amount to scale @p v2 by before adding to @p v1.
-inline void dtVmad(float* dest, const float* v1, const float* v2, const float s)
+inline void dtVmad(dtCoordinates& dest, const dtCoordinates& v1, const dtCoordinates& v2, const float s)
 {
-	dest[0] = v1[0]+v2[0]*s;
-	dest[1] = v1[1]+v2[1]*s;
-	dest[2] = v1[2]+v2[2]*s;
+	dest.SetX( v1.X()+v2.X()*s );
+	dest.SetY( v1.Y()+v2.Y()*s );
+	dest.SetZ( v1.Z()+v2.Z()*s );
 }
 
 /// Performs a linear interpolation between two vectors. (@p v1 toward @p v2)
@@ -117,64 +119,64 @@ inline void dtVmad(float* dest, const float* v1, const float* v2, const float s)
 ///  @param[in]		v1		The starting vector.
 ///  @param[in]		v2		The destination vector.
 ///	 @param[in]		t		The interpolation factor. [Limits: 0 <= value <= 1.0]
-inline void dtVlerp(float* dest, const float* v1, const float* v2, const float t)
+inline void dtVlerp(dtCoordinates& dest, const dtCoordinates& v1, const dtCoordinates& v2, const float t)
 {
-	dest[0] = v1[0]+(v2[0]-v1[0])*t;
-	dest[1] = v1[1]+(v2[1]-v1[1])*t;
-	dest[2] = v1[2]+(v2[2]-v1[2])*t;
+	dest.SetX( v1.X()+(v2.X()-v1.X())*t );
+	dest.SetY( v1.Y()+(v2.Y()-v1.Y())*t );
+	dest.SetZ( v1.Z()+(v2.Z()-v1.Z())*t );
 }
 
 /// Performs a vector addition. (@p v1 + @p v2)
 ///  @param[out]	dest	The result vector. [(x, y, z)]
 ///  @param[in]		v1		The base vector. [(x, y, z)]
 ///  @param[in]		v2		The vector to add to @p v1. [(x, y, z)]
-inline void dtVadd(float* dest, const float* v1, const float* v2)
+inline void dtVadd(dtCoordinates& dest, const dtCoordinates& v1, const dtCoordinates& v2)
 {
-	dest[0] = v1[0]+v2[0];
-	dest[1] = v1[1]+v2[1];
-	dest[2] = v1[2]+v2[2];
+	dest.SetX( v1.X()+v2.X() );
+	dest.SetY( v1.Y()+v2.Y() );
+	dest.SetZ( v1.Z()+v2.Z() );
 }
 
 /// Performs a vector subtraction. (@p v1 - @p v2)
 ///  @param[out]	dest	The result vector. [(x, y, z)]
 ///  @param[in]		v1		The base vector. [(x, y, z)]
 ///  @param[in]		v2		The vector to subtract from @p v1. [(x, y, z)]
-inline void dtVsub(float* dest, const float* v1, const float* v2)
+inline void dtVsub(dtCoordinates& dest, const dtCoordinates& v1, const dtCoordinates& v2)
 {
-	dest[0] = v1[0]-v2[0];
-	dest[1] = v1[1]-v2[1];
-	dest[2] = v1[2]-v2[2];
+	dest.SetX( v1.X()-v2.X() );
+	dest.SetY( v1.Y()-v2.Y() );
+	dest.SetZ( v1.Z()-v2.Z() );
 }
 
 /// Scales the vector by the specified value. (@p v * @p t)
 ///  @param[out]	dest	The result vector. [(x, y, z)]
 ///  @param[in]		v		The vector to scale. [(x, y, z)]
 ///  @param[in]		t		The scaling factor.
-inline void dtVscale(float* dest, const float* v, const float t)
+inline void dtVscale(dtCoordinates& dest, const dtCoordinates& v, const float t)
 {
-	dest[0] = v[0]*t;
-	dest[1] = v[1]*t;
-	dest[2] = v[2]*t;
+	dest.SetX( v.X()*t );
+	dest.SetY( v.Y()*t );
+	dest.SetZ( v.Z()*t );
 }
 
 /// Selects the minimum value of each element from the specified vectors.
 ///  @param[in,out]	mn	A vector.  (Will be updated with the result.) [(x, y, z)]
 ///  @param[in]	v	A vector. [(x, y, z)]
-inline void dtVmin(float* mn, const float* v)
+inline void dtVmin(dtCoordinates& mn, const dtCoordinates& v)
 {
-	mn[0] = dtMin(mn[0], v[0]);
-	mn[1] = dtMin(mn[1], v[1]);
-	mn[2] = dtMin(mn[2], v[2]);
+	mn.SetX( dtMin(mn.X(), v.X()) );
+	mn.SetY( dtMin(mn.Y(), v.Y()) );
+	mn.SetZ( dtMin(mn.Z(), v.Z()) );
 }
 
 /// Selects the maximum value of each element from the specified vectors.
 ///  @param[in,out]	mx	A vector.  (Will be updated with the result.) [(x, y, z)]
 ///  @param[in]		v	A vector. [(x, y, z)]
-inline void dtVmax(float* mx, const float* v)
+inline void dtVmax(dtCoordinates& mx, const dtCoordinates& v)
 {
-	mx[0] = dtMax(mx[0], v[0]);
-	mx[1] = dtMax(mx[1], v[1]);
-	mx[2] = dtMax(mx[2], v[2]);
+	mx.SetX( dtMax(mx.X(), v.X()) );
+	mx.SetY( dtMax(mx.Y(), v.Y()) );
+	mx.SetZ( dtMax(mx.Z(), v.Z()) );
 }
 
 /// Sets the vector elements to the specified values.
@@ -182,46 +184,46 @@ inline void dtVmax(float* mx, const float* v)
 ///  @param[in]		x		The x-value of the vector.
 ///  @param[in]		y		The y-value of the vector.
 ///  @param[in]		z		The z-value of the vector.
-inline void dtVset(float* dest, const float x, const float y, const float z)
+inline void dtVset(dtCoordinates& dest, const float x, const float y, const float z)
 {
-	dest[0] = x; dest[1] = y; dest[2] = z;
+	dest.SetX( x );
+	dest.SetY( y );
+	dest.SetZ( z );
 }
 
 /// Performs a vector copy.
 ///  @param[out]	dest	The result. [(x, y, z)]
 ///  @param[in]		a		The vector to copy. [(x, y, z)]
-inline void dtVcopy(float* dest, const float* a)
+inline void dtVcopy(dtCoordinates& dest, const dtCoordinates& a)
 {
-	dest[0] = a[0];
-	dest[1] = a[1];
-	dest[2] = a[2];
+	dest = a;
 }
 
 /// Derives the scalar length of the vector.
 ///  @param[in]		v The vector. [(x, y, z)]
 /// @return The scalar length of the vector.
-inline float dtVlen(const float* v)
+inline float dtVlen(const dtCoordinates& v)
 {
-	return dtSqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+	return dtSqrt(v.X()*v.X() + v.Y()*v.Y() + v.Z()*v.Z());
 }
 
 /// Derives the square of the scalar length of the vector. (len * len)
 ///  @param[in]		v The vector. [(x, y, z)]
 /// @return The square of the scalar length of the vector.
-inline float dtVlenSqr(const float* v)
+inline float dtVlenSqr(const dtCoordinates& v)
 {
-	return v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
+	return v.X()*v.X() + v.Y()*v.Y() + v.Z()*v.Z();
 }
 
 /// Returns the distance between two points.
 ///  @param[in]		v1	A point. [(x, y, z)]
 ///  @param[in]		v2	A point. [(x, y, z)]
 /// @return The distance between the two points.
-inline float dtVdist(const float* v1, const float* v2)
+inline float dtVdist(const dtCoordinates& v1, const dtCoordinates& v2)
 {
-	const float dx = v2[0] - v1[0];
-	const float dy = v2[1] - v1[1];
-	const float dz = v2[2] - v1[2];
+	const float dx = v2.X() - v1.X();
+	const float dy = v2.Y() - v1.Y();
+	const float dz = v2.Z() - v1.Z();
 	return dtSqrt(dx*dx + dy*dy + dz*dz);
 }
 
@@ -229,11 +231,11 @@ inline float dtVdist(const float* v1, const float* v2)
 ///  @param[in]		v1	A point. [(x, y, z)]
 ///  @param[in]		v2	A point. [(x, y, z)]
 /// @return The square of the distance between the two points.
-inline float dtVdistSqr(const float* v1, const float* v2)
+inline float dtVdistSqr(const dtCoordinates& v1, const dtCoordinates& v2)
 {
-	const float dx = v2[0] - v1[0];
-	const float dy = v2[1] - v1[1];
-	const float dz = v2[2] - v1[2];
+	const float dx = v2.X() - v1.X();
+	const float dy = v2.Y() - v1.Y();
+	const float dz = v2.Z() - v1.Z();
 	return dx*dx + dy*dy + dz*dz;
 }
 
@@ -243,10 +245,10 @@ inline float dtVdistSqr(const float* v1, const float* v2)
 /// @return The distance between the point on the xz-plane.
 ///
 /// The vectors are projected onto the xz-plane, so the y-values are ignored.
-inline float dtVdist2D(const float* v1, const float* v2)
+inline float dtVdist2D(const dtCoordinates& v1, const dtCoordinates& v2)
 {
-	const float dx = v2[0] - v1[0];
-	const float dz = v2[2] - v1[2];
+	const float dx = v2.X() - v1.X();
+	const float dz = v2.Z() - v1.Z();
 	return dtSqrt(dx*dx + dz*dz);
 }
 
@@ -254,21 +256,21 @@ inline float dtVdist2D(const float* v1, const float* v2)
 ///  @param[in]		v1	A point. [(x, y, z)]
 ///  @param[in]		v2	A point. [(x, y, z)]
 /// @return The square of the distance between the point on the xz-plane.
-inline float dtVdist2DSqr(const float* v1, const float* v2)
+inline float dtVdist2DSqr(const dtCoordinates& v1, const dtCoordinates& v2)
 {
-	const float dx = v2[0] - v1[0];
-	const float dz = v2[2] - v1[2];
+	const float dx = v2.X() - v1.X();
+	const float dz = v2.Z() - v1.Z();
 	return dx*dx + dz*dz;
 }
 
 /// Normalizes the vector.
 ///  @param[in,out]	v	The vector to normalize. [(x, y, z)]
-inline void dtVnormalize(float* v)
+inline void dtVnormalize(dtCoordinates& v)
 {
-	float d = 1.0f / dtSqrt(dtSqr(v[0]) + dtSqr(v[1]) + dtSqr(v[2]));
-	v[0] *= d;
-	v[1] *= d;
-	v[2] *= d;
+	float d = 1.0f / dtSqrt(dtSqr(v.X()) + dtSqr(v.Y()) + dtSqr(v.Z()));
+	v.SetX( v.X()*d );
+	v.SetY( v.Y()*d );
+	v.SetZ( v.Z()*d );
 }
 
 /// Performs a 'sloppy' colocation check of the specified points.
@@ -278,7 +280,7 @@ inline void dtVnormalize(float* v)
 ///
 /// Basically, this function will return true if the specified points are 
 /// close enough to eachother to be considered colocated.
-inline bool dtVequal(const float* p0, const float* p1)
+inline bool dtVequal(const dtCoordinates& p0, const dtCoordinates& p1)
 {
 	static const float thr = dtSqr(1.0f/16384.0f);
 	const float d = dtVdistSqr(p0, p1);
@@ -291,9 +293,9 @@ inline bool dtVequal(const float* p0, const float* p1)
 /// @return The dot product on the xz-plane.
 ///
 /// The vectors are projected onto the xz-plane, so the y-values are ignored.
-inline float dtVdot2D(const float* u, const float* v)
+inline float dtVdot2D(const dtCoordinates& u, const dtCoordinates& v)
 {
-	return u[0]*v[0] + u[2]*v[2];
+	return u.X()*v.X() + u.Z()*v.Z();
 }
 
 /// Derives the xz-plane 2D perp product of the two vectors. (uz*vx - ux*vz)
@@ -302,9 +304,9 @@ inline float dtVdot2D(const float* u, const float* v)
 /// @return The dot product on the xz-plane.
 ///
 /// The vectors are projected onto the xz-plane, so the y-values are ignored.
-inline float dtVperp2D(const float* u, const float* v)
+inline float dtVperp2D(const dtCoordinates& u, const dtCoordinates& v)
 {
-	return u[2]*v[0] - u[0]*v[2];
+	return u.Z()*v.X() - u.X()*v.Z();
 }
 
 /// @}
@@ -316,12 +318,12 @@ inline float dtVperp2D(const float* u, const float* v)
 ///  @param[in]		b		Vertex B. [(x, y, z)]
 ///  @param[in]		c		Vertex C. [(x, y, z)]
 /// @return The signed xz-plane area of the triangle.
-inline float dtTriArea2D(const float* a, const float* b, const float* c)
+inline float dtTriArea2D(const dtCoordinates& a, const dtCoordinates& b, const dtCoordinates& c)
 {
-	const float abx = b[0] - a[0];
-	const float abz = b[2] - a[2];
-	const float acx = c[0] - a[0];
-	const float acz = c[2] - a[2];
+	const float abx = b.X() - a.X();
+	const float abz = b.Z() - a.Z();
+	const float acx = c.X() - a.X();
+	const float acz = c.Z() - a.Z();
 	return acx*abz - abx*acz;
 }
 
@@ -349,13 +351,13 @@ inline bool dtOverlapQuantBounds(const unsigned short amin[3], const unsigned sh
 ///  @param[in]		bmax	Maximum bounds of box B. [(x, y, z)]
 /// @return True if the two AABB's overlap.
 /// @see dtOverlapQuantBounds
-inline bool dtOverlapBounds(const float* amin, const float* amax,
-							const float* bmin, const float* bmax)
+inline bool dtOverlapBounds(const dtCoordinates& amin, const dtCoordinates& amax,
+							const dtCoordinates& bmin, const dtCoordinates& bmax)
 {
 	bool overlap = true;
-	overlap = (amin[0] > bmax[0] || amax[0] < bmin[0]) ? false : overlap;
-	overlap = (amin[1] > bmax[1] || amax[1] < bmin[1]) ? false : overlap;
-	overlap = (amin[2] > bmax[2] || amax[2] < bmin[2]) ? false : overlap;
+	overlap = (amin.X() > bmax.X() || amax.X() < bmin.X()) ? false : overlap;
+	overlap = (amin.Y() > bmax.Y() || amax.Y() < bmin.Y()) ? false : overlap;
+	overlap = (amin.Z() > bmax.Z() || amax.Z() < bmin.Z()) ? false : overlap;
 	return overlap;
 }
 
@@ -365,8 +367,8 @@ inline bool dtOverlapBounds(const float* amin, const float* amax,
 ///  @param[in]		a		Vertex A of triangle ABC. [(x, y, z)]
 ///  @param[in]		b		Vertex B of triangle ABC. [(x, y, z)]
 ///  @param[in]		c		Vertex C of triangle ABC. [(x, y, z)]
-void dtClosestPtPointTriangle(float* closest, const float* p,
-							  const float* a, const float* b, const float* c);
+void dtClosestPtPointTriangle(dtCoordinates& closest, const dtCoordinates& p,
+							  const dtCoordinates& a, const dtCoordinates& b, const dtCoordinates& c);
 
 /// Derives the y-axis height of the closest point on the triangle from the specified reference point.
 ///  @param[in]		p		The reference point from which to test. [(x, y, z)]
@@ -374,15 +376,15 @@ void dtClosestPtPointTriangle(float* closest, const float* p,
 ///  @param[in]		b		Vertex B of triangle ABC. [(x, y, z)]
 ///  @param[in]		c		Vertex C of triangle ABC. [(x, y, z)]
 ///  @param[out]	h		The resulting height.
-bool dtClosestHeightPointTriangle(const float* p, const float* a, const float* b, const float* c, float& h);
+bool dtClosestHeightPointTriangle(const dtCoordinates& p, const dtCoordinates& a, const dtCoordinates& b, const dtCoordinates& c, float& h);
 
-bool dtIntersectSegmentPoly2D(const float* p0, const float* p1,
-							  const float* verts, int nverts,
+bool dtIntersectSegmentPoly2D(const dtCoordinates& p0, const dtCoordinates& p1,
+							  const dtCoordinates* verts, int nverts,
 							  float& tmin, float& tmax,
 							  int& segMin, int& segMax);
 
-bool dtIntersectSegSeg2D(const float* ap, const float* aq,
-						 const float* bp, const float* bq,
+bool dtIntersectSegSeg2D(const dtCoordinates& ap, const dtCoordinates& aq,
+						 const dtCoordinates& bp, const dtCoordinates& bq,
 						 float& s, float& t);
 
 /// Determines if the specified point is inside the convex polygon on the xz-plane.
@@ -390,19 +392,19 @@ bool dtIntersectSegSeg2D(const float* ap, const float* aq,
 ///  @param[in]		verts	The polygon vertices. [(x, y, z) * @p nverts]
 ///  @param[in]		nverts	The number of vertices. [Limit: >= 3]
 /// @return True if the point is inside the polygon.
-bool dtPointInPolygon(const float* pt, const float* verts, const int nverts);
+bool dtPointInPolygon(const dtCoordinates& pt, const dtCoordinates* verts, const int nverts);
 
-bool dtDistancePtPolyEdgesSqr(const float* pt, const float* verts, const int nverts,
+bool dtDistancePtPolyEdgesSqr(const dtCoordinates& pt, const dtCoordinates* verts, const int nverts,
 							float* ed, float* et);
 
-float dtDistancePtSegSqr2D(const float* pt, const float* p, const float* q, float& t);
+float dtDistancePtSegSqr2D(const dtCoordinates& pt, const dtCoordinates& p, const dtCoordinates& q, float& t);
 
 /// Derives the centroid of a convex polygon.
 ///  @param[out]	tc		The centroid of the polgyon. [(x, y, z)]
 ///  @param[in]		idx		The polygon indices. [(vertIndex) * @p nidx]
 ///  @param[in]		nidx	The number of indices in the polygon. [Limit: >= 3]
 ///  @param[in]		verts	The polygon vertices. [(x, y, z) * vertCount]
-void dtCalcPolyCenter(float* tc, const unsigned short* idx, int nidx, const float* verts);
+void dtCalcPolyCenter(dtCoordinates& tc, const unsigned short* idx, int nidx, const dtCoordinates* verts);
 
 /// Determines if the two convex polygons overlap on the xz-plane.
 ///  @param[in]		polya		Polygon A vertices.	[(x, y, z) * @p npolya]
@@ -410,8 +412,8 @@ void dtCalcPolyCenter(float* tc, const unsigned short* idx, int nidx, const floa
 ///  @param[in]		polyb		Polygon B vertices.	[(x, y, z) * @p npolyb]
 ///  @param[in]		npolyb		The number of vertices in polygon B.
 /// @return True if the two polygons overlap.
-bool dtOverlapPolyPoly2D(const float* polya, const int npolya,
-						 const float* polyb, const int npolyb);
+bool dtOverlapPolyPoly2D(const dtCoordinates* polya, const int npolya,
+						 const dtCoordinates* polyb, const int npolyb);
 
 /// @}
 /// @name Miscellanious functions.
@@ -482,8 +484,8 @@ inline void dtSwapEndian(float* v)
 	dtSwapByte(x+0, x+3); dtSwapByte(x+1, x+2);
 }
 
-void dtRandomPointInConvexPoly(const float* pts, const int npts, float* areas,
-							   const float s, const float t, float* out);
+void dtRandomPointInConvexPoly(const dtCoordinates* pts, const int npts, float* areas,
+							   const float s, const float t, dtCoordinates& out);
 
 //////////////////////////////////////////////////////////////////////////
 // MIRCHANG
@@ -496,29 +498,29 @@ inline bool dtOverlapQuantBounds2D(const unsigned short amin[3], const unsigned 
 	return overlap;
 }
 
-inline bool dtOverlapBounds2D(const float* amin, const float* amax,
-							  const float* bmin, const float* bmax)
+inline bool dtOverlapBounds2D(const dtCoordinates& amin, const dtCoordinates& amax,
+							  const dtCoordinates& bmin, const dtCoordinates& bmax)
 {
 	bool overlap = true;
-	overlap = (amin[0] > bmax[0] || amax[0] < bmin[0]) ? false : overlap;
-	overlap = (amin[2] > bmax[2] || amax[2] < bmin[2]) ? false : overlap;
+	overlap = (amin.X() > bmax.X() || amax.X() < bmin.X()) ? false : overlap;
+	overlap = (amin.Z() > bmax.Z() || amax.Z() < bmin.Z()) ? false : overlap;
 	return overlap;
 }
 
-inline bool dtCompleteOverlapBounds2D(const float* amin, const float* amax, const float* bmin, const float* bmax)
+inline bool dtCompleteOverlapBounds2D(const dtCoordinates& amin, const dtCoordinates& amax, const dtCoordinates& bmin, const dtCoordinates& bmax)
 {
-	if( amin[0] <= bmin[0] && bmax[0] <= amax[0] && amin[2] <= bmin[2] && bmax[2] <= amax[2] ) {
+	if( amin.X() <= bmin.X() && bmax.X() <= amax.X() && amin.Z() <= bmin.Z() && bmax.Z() <= amax.Z() ) {
 		return true;
 	}
-	if( bmin[0] <= amin[0] && amax[0] <= bmax[0] && bmin[2] <= amin[2] && amax[2] <= bmax[2] ) {
+	if( bmin.X() <= amin.X() && amax.X() <= bmax.X() && bmin.Z() <= amin.Z() && amax.Z() <= bmax.Z() ) {
 		return true;
 	}
 	return false;
 }
 
-float	dtCorrectHeightPointTriangle( const float* pos, const float* verts );
+float	dtCorrectHeightPointTriangle( const dtCoordinates& pos, const dtCoordinates* triangle );
 
-bool	_dtIntersectSegmentPoly2D( const float* p0, const float* p1, const float* verts, const int nverts, int& segMin, int& segMax, float* resultPosition );
+bool	_dtIntersectSegmentPoly2D( const dtCoordinates& p0, const dtCoordinates& p1, const dtCoordinates* verts, const int nverts, int& segMin, int& segMax, dtCoordinates& resultPosition );
 // MIRCHANG
 //////////////////////////////////////////////////////////////////////////
 

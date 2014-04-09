@@ -21,6 +21,7 @@
 			OutputDirectory="lib\Debug"
 			IntermediateDirectory="obj\Debug\DetourTileCache"
 			ConfigurationType="4"
+			InheritedPropertySheets="C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Language.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Config_Debug.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Target_StaticLinkedExecutable.vsprops"
 			CharacterSet="2"
 			>
 			<Tool
@@ -41,7 +42,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\..\..\DetourTileCache\Include;..\..\..\Detour\Include;..\..\..\Recast\Include;..\..\..\Common"
+				AdditionalIncludeDirectories="..\..\..\DetourTileCache\Include;..\..\..\Detour\Include;..\..\..\Recast\Include"
 				PreprocessorDefinitions="DEBUG;WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS"
 				MinimalRebuild="true"
 				ExceptionHandling="0"
@@ -91,6 +92,7 @@
 			OutputDirectory="lib\Release"
 			IntermediateDirectory="obj\Release\DetourTileCache"
 			ConfigurationType="4"
+			InheritedPropertySheets="C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Language.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Config_Release.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Target_StaticLinkedExecutable.vsprops"
 			CharacterSet="2"
 			>
 			<Tool
@@ -111,7 +113,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="3"
-				AdditionalIncludeDirectories="..\..\..\DetourTileCache\Include;..\..\..\Detour\Include;..\..\..\Recast\Include;..\..\..\Common"
+				AdditionalIncludeDirectories="..\..\..\DetourTileCache\Include;..\..\..\Detour\Include;..\..\..\Recast\Include"
 				PreprocessorDefinitions="NDEBUG;WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS"
 				StringPooling="true"
 				ExceptionHandling="0"

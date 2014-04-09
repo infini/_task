@@ -25,11 +25,12 @@
 #include <string>
 #include <vector>
 #include "..\..\Detour\Include\DetourNavMesh.h"
+#include "..\..\Detour\Include\DetourCoordinates.h"
 
 static const int MAX_CONVEXVOL_PTS = 12;
 struct ConvexVolume
 {
-	float verts[MAX_CONVEXVOL_PTS*3];
+	dtCoordinates verts[MAX_CONVEXVOL_PTS];
 	float hmin, hmax;
 	int nverts;
 	int area;
@@ -40,12 +41,13 @@ class InputGeom
 {
 	rcChunkyTriMesh* m_chunkyMesh;
 	rcMeshLoaderObj* m_mesh;
-	float m_meshBMin[3], m_meshBMax[3];
+	dtCoordinates m_meshBMin, m_meshBMax;
 	
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	/// @name Off-Mesh connections.
 	///@{
 	static const int MAX_OFFMESH_CONNECTIONS = 10000;
-	float m_offMeshConVerts[MAX_OFFMESH_CONNECTIONS*3*2];
+	dtCoordinates m_offMeshConVerts[MAX_OFFMESH_CONNECTIONS*2];
 	float m_offMeshConRads[MAX_OFFMESH_CONNECTIONS];
 	unsigned char m_offMeshConDirs[MAX_OFFMESH_CONNECTIONS];
 	unsigned char m_offMeshConAreas[MAX_OFFMESH_CONNECTIONS];
@@ -53,6 +55,7 @@ class InputGeom
 	unsigned int m_offMeshConId[MAX_OFFMESH_CONNECTIONS];
 	int m_offMeshConCount;
 	///@}
+#endif // !MODIFY_OFF_MESH_CONNECTION
 
 	/// @name Convex Volumes.
 	///@{
@@ -76,11 +79,12 @@ public:
 	
 	/// Method to return static mesh data.
 	inline const rcMeshLoaderObj* getMesh() const { return m_mesh; }
-	inline const float* getMeshBoundsMin() const { return m_meshBMin; }
-	inline const float* getMeshBoundsMax() const { return m_meshBMax; }
+	inline const dtCoordinates& getMeshBoundsMin() const { return m_meshBMin; }
+	inline const dtCoordinates& getMeshBoundsMax() const { return m_meshBMax; }
 	inline const rcChunkyTriMesh* getChunkyMesh() const { return m_chunkyMesh; }
-	bool raycastMesh(float* src, float* dst, float& tmin);
+	bool raycastMesh(const dtCoordinates& src, const dtCoordinates& dst, float& tmin);
 
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	/// @name Off-Mesh connections.
 	///@{
 	int getOffMeshConnectionCount() const { return m_offMeshConCount; }
@@ -95,12 +99,13 @@ public:
 	void deleteOffMeshConnection(int i);
 	void drawOffMeshConnections(struct duDebugDraw* dd, bool hilight = false);
 	///@}
+#endif // !MODIFY_OFF_MESH_CONNECTION
 
 	/// @name Box Volumes.
 	///@{
 	int getConvexVolumeCount() const { return m_volumeCount; }
 	const ConvexVolume* getConvexVolumes() const { return m_volumes; }
-	void addConvexVolume(const float* verts, const int nverts,
+	void addConvexVolume(const dtCoordinates* verts, const int nverts,
 						 const float minh, const float maxh, unsigned char area);
 	void deleteConvexVolume(int i);
 	void drawConvexVolumes(struct duDebugDraw* dd, bool hilight = false);

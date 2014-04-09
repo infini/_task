@@ -29,12 +29,12 @@
 #include "RecastDebugDraw.h"
 #include "DetourNavMesh.h"
 
-static bool intersectSegmentTriangle(const float* sp, const float* sq,
-									 const float* a, const float* b, const float* c,
+static bool intersectSegmentTriangle(const dtCoordinates& sp, const dtCoordinates& sq,
+									 const dtCoordinates& a, const dtCoordinates& b, const dtCoordinates& c,
 									 float &t)
 {
 	float v, w;
-	float ab[3], ac[3], qp[3], ap[3], norm[3], e[3];
+	dtCoordinates ab, ac, qp, ap, norm, e;
 	rcVsub(ab, b, a);
 	rcVsub(ac, c, a);
 	rcVsub(qp, sp, sq);
@@ -107,7 +107,9 @@ static char* parseRow(char* buf, char* bufEnd, char* row, int len)
 InputGeom::InputGeom() :
 	m_chunkyMesh(0),
 	m_mesh(0),
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	m_offMeshConCount(0),
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	m_volumeCount(0)
 #ifdef INTEGRATION_BUILD
 	, m_integrationBuild( false )
@@ -131,7 +133,9 @@ bool InputGeom::loadMesh(rcContext* ctx, const char* filepath)
 		delete m_mesh;
 		m_mesh = 0;
 	}
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	m_offMeshConCount = 0;
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	m_volumeCount = 0;
 	
 	m_mesh = new rcMeshLoaderObj;
@@ -187,8 +191,10 @@ bool InputGeom::load(rcContext* ctx, const char* filePath)
 	}
 	fread(buf, bufSize, 1, fp);
 	fclose(fp);
-	
+
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	m_offMeshConCount = 0;
+#endif // !MODIFY_OFF_MESH_CONNECTION
 	m_volumeCount = 0;
 	delete m_mesh;
 	m_mesh = 0;
@@ -219,6 +225,7 @@ bool InputGeom::load(rcContext* ctx, const char* filePath)
 		}
 		else if (row[0] == 'c')
 		{
+#ifndef MODIFY_OFF_MESH_CONNECTION
 			// Off-mesh connection
 			if (m_offMeshConCount < MAX_OFFMESH_CONNECTIONS)
 			{
@@ -233,6 +240,7 @@ bool InputGeom::load(rcContext* ctx, const char* filePath)
 				m_offMeshConFlags[m_offMeshConCount] = (unsigned short)flags;
 				m_offMeshConCount++;
 			}
+#endif // !MODIFY_OFF_MESH_CONNECTION
 		}
 		else if (row[0] == 'v')
 		{
@@ -245,7 +253,11 @@ bool InputGeom::load(rcContext* ctx, const char* filePath)
 				{
 					row[0] = '\0';
 					src = parseRow(src, srcEnd, row, sizeof(row)/sizeof(char));
-					sscanf(row, "%f %f %f", &vol->verts[i*3+0], &vol->verts[i*3+1], &vol->verts[i*3+2]);
+					float x, y, z;
+					sscanf(row, "%f %f %f", &x, &y, &z);
+					vol->verts[i].SetX( x );
+					vol->verts[i].SetY( y );
+					vol->verts[i].SetZ( z );
 				}
 			}
 		}
@@ -265,7 +277,8 @@ bool InputGeom::save(const char* filepath)
 	
 	// Store mesh filename.
 	fprintf(fp, "f %s\n", m_mesh->getFileName());
-	
+
+#ifndef MODIFY_OFF_MESH_CONNECTION
 	// Store off-mesh links.
 	for (int i = 0; i < m_offMeshConCount; ++i)
 	{
@@ -277,6 +290,7 @@ bool InputGeom::save(const char* filepath)
 		fprintf(fp, "c %f %f %f  %f %f %f  %f %d %d %d\n",
 				v[0], v[1], v[2], v[3], v[4], v[5], rad, bidir, area, flags);
 	}
+#endif // !MODIFY_OFF_MESH_CONNECTION
 
 	// Convex volumes
 	for (int i = 0; i < m_volumeCount; ++i)
@@ -284,7 +298,7 @@ bool InputGeom::save(const char* filepath)
 		ConvexVolume* vol = &m_volumes[i];
 		fprintf(fp, "v %d %d %f %f\n", vol->nverts, vol->area, vol->hmin, vol->hmax);
 		for (int j = 0; j < vol->nverts; ++j)
-			fprintf(fp, "%f %f %f\n", vol->verts[j*3+0], vol->verts[j*3+1], vol->verts[j*3+2]);
+			fprintf(fp, "%f %f %f\n", vol->verts[j].X(), vol->verts[j].Y(), vol->verts[j].Z());
 	}
 	
 	fclose(fp);
@@ -292,18 +306,24 @@ bool InputGeom::save(const char* filepath)
 	return true;
 }
 
-static bool isectSegAABB(const float* sp, const float* sq,
-						 const float* amin, const float* amax,
+static bool isectSegAABB(const dtCoordinates& _sp, const dtCoordinates& _sq,
+						 const dtCoordinates& _amin, const dtCoordinates& _amax,
 						 float& tmin, float& tmax)
 {
 	static const float EPS = 1e-6f;
 	
-	float d[3];
-	d[0] = sq[0] - sp[0];
-	d[1] = sq[1] - sp[1];
-	d[2] = sq[2] - sp[2];
+	const dtCoordinates _d( _sq.X() - _sp.X(), _sq.Y() - _sp.Y(), _sq.Z() - _sp.Z() );
 	tmin = 0.0;
 	tmax = 1.0f;
+
+	//////////////////////////////////////////////////////////////////////////
+	float d[3], sp[3], sq[3], amin[3], amax[3];
+	TransformCoordinates::transform( _d, d );
+	TransformCoordinates::transform( _sp, sp );
+	TransformCoordinates::transform( _sq, sq );
+	TransformCoordinates::transform( _amin, amin );
+	TransformCoordinates::transform( _amax, amax );
+	//////////////////////////////////////////////////////////////////////////
 	
 	for (int i = 0; i < 3; i++)
 	{
@@ -328,9 +348,9 @@ static bool isectSegAABB(const float* sp, const float* sq,
 }
 
 
-bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
+bool InputGeom::raycastMesh(const dtCoordinates& src, const dtCoordinates& dst, float& tmin)
 {
-	float dir[3];
+	dtCoordinates dir;
 	rcVsub(dir, dst, src);
 
 	// Prune hit ray.
@@ -338,10 +358,10 @@ bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
 	if (!isectSegAABB(src, dst, m_meshBMin, m_meshBMax, btmin, btmax))
 		return false;
 	float p[2], q[2];
-	p[0] = src[0] + (dst[0]-src[0])*btmin;
-	p[1] = src[2] + (dst[2]-src[2])*btmin;
-	q[0] = src[0] + (dst[0]-src[0])*btmax;
-	q[1] = src[2] + (dst[2]-src[2])*btmax;
+	p[0] = src.X() + (dst.X()-src.X())*btmin;
+	p[1] = src.Z() + (dst.Z()-src.Z())*btmin;
+	q[0] = src.X() + (dst.X()-src.X())*btmax;
+	q[1] = src.Z() + (dst.Z()-src.Z())*btmax;
 	
 	int cid[512];
 	const int ncid = rcGetChunksOverlappingSegment(m_chunkyMesh, p, q, cid, 512);
@@ -350,7 +370,7 @@ bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
 	
 	tmin = 1.0f;
 	bool hit = false;
-	const float* verts = m_mesh->getVerts();
+	const dtCoordinates* verts = m_mesh->getVerts();
 	
 	for (int i = 0; i < ncid; ++i)
 	{
@@ -362,9 +382,9 @@ bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
 		{
 			float t = 1;
 			if (intersectSegmentTriangle(src, dst,
-										 &verts[tris[j]*3],
-										 &verts[tris[j+1]*3],
-										 &verts[tris[j+2]*3], t))
+										 verts[tris[j]],
+										 verts[tris[j+1]],
+										 verts[tris[j+2]], t))
 			{
 				if (t < tmin)
 					tmin = t;
@@ -376,6 +396,7 @@ bool InputGeom::raycastMesh(float* src, float* dst, float& tmin)
 	return hit;
 }
 
+#ifndef MODIFY_OFF_MESH_CONNECTION
 void InputGeom::addOffMeshConnection(const float* spos, const float* epos, const float rad,
 									 unsigned char bidir, unsigned char area, unsigned short flags)
 {
@@ -434,14 +455,15 @@ void InputGeom::drawOffMeshConnections(duDebugDraw* dd, bool hilight)
 
 	dd->depthMask(true);
 }
+#endif // !MODIFY_OFF_MESH_CONNECTION
 
-void InputGeom::addConvexVolume(const float* verts, const int nverts,
+void InputGeom::addConvexVolume(const dtCoordinates* verts, const int nverts,
 								const float minh, const float maxh, unsigned char area)
 {
 	if (m_volumeCount >= MAX_VOLUMES) return;
 	ConvexVolume* vol = &m_volumes[m_volumeCount++];
 	memset(vol, 0, sizeof(ConvexVolume));
-	memcpy(vol->verts, verts, sizeof(float)*3*nverts);
+	memcpy(vol->verts, verts, sizeof(dtCoordinates)*nverts);
 	vol->hmin = minh;
 	vol->hmax = maxh;
 	vol->nverts = nverts;
@@ -466,20 +488,20 @@ void InputGeom::drawConvexVolumes(struct duDebugDraw* dd, bool /*hilight*/)
 		unsigned int col = duIntToCol(vol->area, 32);
 		for (int j = 0, k = vol->nverts-1; j < vol->nverts; k = j++)
 		{
-			const float* va = &vol->verts[k*3];
-			const float* vb = &vol->verts[j*3];
+			const dtCoordinates va( vol->verts[k] );
+			const dtCoordinates vb( vol->verts[j] );
 
-			dd->vertex(vol->verts[0],vol->hmax,vol->verts[2], col);
-			dd->vertex(vb[0],vol->hmax,vb[2], col);
-			dd->vertex(va[0],vol->hmax,va[2], col);
+			dd->vertex(vol->verts[0].X(),vol->hmax,vol->verts[0].Z(), col);
+			dd->vertex(vb.X(),vol->hmax,vb.Z(), col);
+			dd->vertex(va.X(),vol->hmax,va.Z(), col);
 			
-			dd->vertex(va[0],vol->hmin,va[2], duDarkenCol(col));
-			dd->vertex(va[0],vol->hmax,va[2], col);
-			dd->vertex(vb[0],vol->hmax,vb[2], col);
+			dd->vertex(va.X(),vol->hmin,va.Z(), duDarkenCol(col));
+			dd->vertex(va.X(),vol->hmax,va.Z(), col);
+			dd->vertex(vb.X(),vol->hmax,vb.Z(), col);
 
-			dd->vertex(va[0],vol->hmin,va[2], duDarkenCol(col));
-			dd->vertex(vb[0],vol->hmax,vb[2], col);
-			dd->vertex(vb[0],vol->hmin,vb[2], duDarkenCol(col));
+			dd->vertex(va.X(),vol->hmin,va.Z(), duDarkenCol(col));
+			dd->vertex(vb.X(),vol->hmax,vb.Z(), col);
+			dd->vertex(vb.X(),vol->hmin,vb.Z(), duDarkenCol(col));
 		}
 	}
 	
@@ -492,14 +514,14 @@ void InputGeom::drawConvexVolumes(struct duDebugDraw* dd, bool /*hilight*/)
 		unsigned int col = duIntToCol(vol->area, 220);
 		for (int j = 0, k = vol->nverts-1; j < vol->nverts; k = j++)
 		{
-			const float* va = &vol->verts[k*3];
-			const float* vb = &vol->verts[j*3];
-			dd->vertex(va[0],vol->hmin,va[2], duDarkenCol(col));
-			dd->vertex(vb[0],vol->hmin,vb[2], duDarkenCol(col));
-			dd->vertex(va[0],vol->hmax,va[2], col);
-			dd->vertex(vb[0],vol->hmax,vb[2], col);
-			dd->vertex(va[0],vol->hmin,va[2], duDarkenCol(col));
-			dd->vertex(va[0],vol->hmax,va[2], col);
+			const dtCoordinates va( vol->verts[k] );
+			const dtCoordinates vb( vol->verts[j] );
+			dd->vertex(va.X(),vol->hmin,va.Z(), duDarkenCol(col));
+			dd->vertex(vb.X(),vol->hmin,vb.Z(), duDarkenCol(col));
+			dd->vertex(va.X(),vol->hmax,va.Z(), col);
+			dd->vertex(vb.X(),vol->hmax,vb.Z(), col);
+			dd->vertex(va.X(),vol->hmin,va.Z(), duDarkenCol(col));
+			dd->vertex(va.X(),vol->hmax,va.Z(), col);
 		}
 	}
 	dd->end();
@@ -511,9 +533,9 @@ void InputGeom::drawConvexVolumes(struct duDebugDraw* dd, bool /*hilight*/)
 		unsigned int col = duDarkenCol(duIntToCol(vol->area, 255));
 		for (int j = 0; j < vol->nverts; ++j)
 		{
-			dd->vertex(vol->verts[j*3+0],vol->verts[j*3+1]+0.1f,vol->verts[j*3+2], col);
-			dd->vertex(vol->verts[j*3+0],vol->hmin,vol->verts[j*3+2], col);
-			dd->vertex(vol->verts[j*3+0],vol->hmax,vol->verts[j*3+2], col);
+			dd->vertex(vol->verts[j].X(),vol->verts[j].Y()+0.1f,vol->verts[j].Z(), col);
+			dd->vertex(vol->verts[j].X(),vol->hmin,vol->verts[j].Z(), col);
+			dd->vertex(vol->verts[j].Z(),vol->hmax,vol->verts[j].Z(), col);
 		}
 	}
 	dd->end();

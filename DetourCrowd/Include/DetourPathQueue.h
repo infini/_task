@@ -21,6 +21,7 @@
 
 #include "DetourNavMesh.h"
 #include "DetourNavMeshQuery.h"
+#include "DetourCoordinates.h"
 
 static const unsigned int DT_PATHQ_INVALID = 0;
 
@@ -32,7 +33,7 @@ class dtPathQueue
 	{
 		dtPathQueueRef ref;
 		/// Path find start and end location.
-		float startPos[3], endPos[3];
+		dtCoordinates startPos, endPos;
 		dtPolyRef startRef, endRef;
 		/// Result.
 		dtPolyRef* path;
@@ -61,7 +62,7 @@ public:
 	void update(const int maxIters);
 	
 	dtPathQueueRef request(dtPolyRef startRef, dtPolyRef endRef,
-						   const float* startPos, const float* endPos, 
+						   const dtCoordinates& startPos, const dtCoordinates& endPos, 
 						   const dtQueryFilter* filter);
 	
 	dtStatus getRequestStatus(dtPathQueueRef ref) const;

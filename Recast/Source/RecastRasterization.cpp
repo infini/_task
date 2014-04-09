@@ -23,12 +23,12 @@
 #include "RecastAlloc.h"
 #include "RecastAssert.h"
 
-inline bool overlapBounds(const float* amin, const float* amax, const float* bmin, const float* bmax)
+inline bool overlapBounds(const dtCoordinates& amin, const dtCoordinates& amax, const dtCoordinates& bmin, const dtCoordinates& bmax)
 {
 	bool overlap = true;
-	overlap = (amin[0] > bmax[0] || amax[0] < bmin[0]) ? false : overlap;
-	overlap = (amin[1] > bmax[1] || amax[1] < bmin[1]) ? false : overlap;
-	overlap = (amin[2] > bmax[2] || amax[2] < bmin[2]) ? false : overlap;
+	overlap = (amin.X() > bmax.X() || amax.X() < bmin.X()) ? false : overlap;
+	overlap = (amin.Y() > bmax.Y() || amax.Y() < bmin.Y()) ? false : overlap;
+	overlap = (amin.Z() > bmax.Z() || amax.Z() < bmin.Z()) ? false : overlap;
 	return overlap;
 }
 
@@ -165,14 +165,23 @@ static void addSpan(rcHeightfield& hf, const int x, const int y,
 }
 
 // divides a convex polygons into two convex polygons on both sides of a line
-static void dividePoly(const float* in, int nin,
-					  float* out1, int* nout1,
-					  float* out2, int* nout2,
+static void dividePoly(const dtCoordinates* in, int nin,
+					  dtCoordinates* out1, int* nout1,
+					  dtCoordinates* out2, int* nout2,
 					  float x, int axis)
 {
-	float d[12];
-	for (int i = 0; i < nin; ++i)
-		d[i] = x - in[i*3+axis];
+	float d[4*3];
+	for (int i = 0; i < nin; ++i) {
+		if( axis == 0 ) {
+			d[i] = x - in[i].X();
+		}
+		else if( axis == 1 ) {
+			d[i] = x - in[i].Y();
+		}
+		else if( axis == 2 ) {
+			d[i] = x - in[i].Z();
+		}
+	}
 	
 	int m = 0, n = 0;
 	for (int i = 0, j = nin-1; i < nin; j=i, ++i)
@@ -182,22 +191,22 @@ static void dividePoly(const float* in, int nin,
 		if (ina != inb)
 		{
 			float s = d[j] / (d[j] - d[i]);
-			out1[m*3+0] = in[j*3+0] + (in[i*3+0] - in[j*3+0])*s;
-			out1[m*3+1] = in[j*3+1] + (in[i*3+1] - in[j*3+1])*s;
-			out1[m*3+2] = in[j*3+2] + (in[i*3+2] - in[j*3+2])*s;
-			rcVcopy(out2 + n*3, out1 + m*3);
+			out1[m].SetX( in[j].X() + (in[i].X() - in[j].X())*s );
+			out1[m].SetY( in[j].Y() + (in[i].Y() - in[j].Y())*s );
+			out1[m].SetZ( in[j].Z() + (in[i].Z() - in[j].Z())*s );
+			rcVcopy(out2[n], out1[m]);
 			m++;
 			n++;
 			// add the i'th point to the right polygon. Do NOT add points that are on the dividing line
 			// since these were already added above
 			if (d[i] > 0)
 			{
-				rcVcopy(out1 + m*3, in + i*3);
+				rcVcopy(out1[m], in[i]);
 				m++;
 			}
 			else if (d[i] < 0)
 			{
-				rcVcopy(out2 + n*3, in + i*3);
+				rcVcopy(out2[n], in[i]);
 				n++;
 			}
 		}
@@ -206,12 +215,12 @@ static void dividePoly(const float* in, int nin,
 			// add the i'th point to the right polygon. Addition is done even for points on the dividing line
 			if (d[i] >= 0)
 			{
-				rcVcopy(out1 + m*3, in + i*3);
+				rcVcopy(out1[m], in[i]);
 				m++;
 				if (d[i] != 0)
 					continue;
 			}
-			rcVcopy(out2 + n*3, in + i*3);
+			rcVcopy(out2[n], in[i]);
 			n++;
 		}
 	}
@@ -222,16 +231,16 @@ static void dividePoly(const float* in, int nin,
 
 
 
-static void rasterizeTri(const float* v0, const float* v1, const float* v2,
+static void rasterizeTri(const dtCoordinates& v0, const dtCoordinates& v1, const dtCoordinates& v2,
 						 const unsigned char area, rcHeightfield& hf,
-						 const float* bmin, const float* bmax,
+						 const dtCoordinates& bmin, const dtCoordinates& bmax,
 						 const float cs, const float ics, const float ich,
 						 const int flagMergeThr)
 {
 	const int w = hf.width;
 	const int h = hf.height;
-	float tmin[3], tmax[3];
-	const float by = bmax[1] - bmin[1];
+	dtCoordinates tmin, tmax;
+	const float by = bmax.Y() - bmin.Y();
 	
 	// Calculate the bounding box of the triangle.
 	rcVcopy(tmin, v0);
@@ -246,37 +255,37 @@ static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 		return;
 	
 	// Calculate the footprint of the triangle on the grid's y-axis
-	int y0 = (int)((tmin[2] - bmin[2])*ics);
-	int y1 = (int)/*ceilf*/((tmax[2] - bmin[2])*ics);
+	int y0 = (int)((tmin.Z() - bmin.Z())*ics);
+	int y1 = (int)/*ceilf*/((tmax.Z() - bmin.Z())*ics);
 	y0 = rcClamp(y0, 0, h-1);
 	y1 = rcClamp(y1, 0, h-1);
 	
 	// Clip the triangle into all grid cells it touches.
-	float buf[7*3*4];
-	float *in = buf, *inrow = buf+7*3, *p1 = inrow+7*3, *p2 = p1+7*3;
+	dtCoordinates buf[7*4];
+	dtCoordinates *in = buf, *inrow = buf+7, *p1 = inrow+7, *p2 = p1+7;
 	
-	rcVcopy(&in[0], v0);
-	rcVcopy(&in[1*3], v1);
-	rcVcopy(&in[2*3], v2);
+	rcVcopy(in[0], v0);
+	rcVcopy(in[1], v1);
+	rcVcopy(in[2], v2);
 	int nvrow, nvIn = 3;
 	
 	for (int y = y0; y <= y1; ++y)
 	{
 		// Clip polygon to row. Store the remaining polygon as well
-		const float cz = bmin[2] + y*cs;
+		const float cz = bmin.Z() + y*cs;
 		dividePoly(in, nvIn, inrow, &nvrow, p1, &nvIn, cz+cs, 2);
 		rcSwap(in, p1);
 		if (nvrow < 3) continue;
 		
 		// find the horizontal bounds in the row
-		float minX = inrow[0], maxX = inrow[0];
+		float minX = inrow[0].X(), maxX = inrow[0].X();
 		for (int i=1; i<nvrow; ++i)
 		{
-			if (minX > inrow[i*3])	minX = inrow[i*3];
-			if (maxX < inrow[i*3])	maxX = inrow[i*3];
+			if (minX > inrow[i].X())	minX = inrow[i].X();
+			if (maxX < inrow[i].X())	maxX = inrow[i].X();
 		}
-		int x0 = (int)((minX - bmin[0])*ics);
-		int x1 = (int)/*ceilf*/((maxX - bmin[0])*ics);
+		int x0 = (int)((minX - bmin.X())*ics);
+		int x1 = (int)/*ceilf*/((maxX - bmin.X())*ics);
 		x0 = rcClamp(x0, 0, w-1);
 		x1 = rcClamp(x1, 0, w-1);
 
@@ -285,20 +294,20 @@ static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 		for (int x = x0; x <= x1; ++x)
 		{
 			// Clip polygon to column. store the remaining polygon as well
-			const float cx = bmin[0] + x*cs;
+			const float cx = bmin.X() + x*cs;
 			dividePoly(inrow, nv2, p1, &nv, p2, &nv2, cx+cs, 0);
 			rcSwap(inrow, p2);
 			if (nv < 3) continue;
 
 			// Calculate min and max of the span.
-			float smin = p1[1], smax = p1[1];
+			float smin = p1[0].Y(), smax = p1[0].Y();
 			for (int i = 1; i < nv; ++i)
 			{
-				smin = rcMin(smin, p1[i*3+1]);
-				smax = rcMax(smax, p1[i*3+1]);
+				smin = rcMin(smin, p1[i].Y());
+				smax = rcMax(smax, p1[i].Y());
 			}
-			smin -= bmin[1];
-			smax -= bmin[1];
+			smin -= bmin.Y();
+			smax -= bmin.Y();
 			// Skip the span if it is outside the heightfield bbox
 			if (smax < 0.0f) continue;
 			if (smin > by) continue;
@@ -340,7 +349,7 @@ static void rasterizeTri(const float* v0, const float* v1, const float* v2,
 /// Spans will only be added for triangles that overlap the heightfield grid.
 ///
 /// @see rcHeightfield
-void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int /*nv*/,
+void rcRasterizeTriangles(rcContext* ctx, const dtCoordinates* verts, const int /*nv*/,
 						  const int* tris, const unsigned char* areas, const int nt,
 						  rcHeightfield& solid, const int flagMergeThr)
 {
@@ -353,9 +362,9 @@ void rcRasterizeTriangles(rcContext* ctx, const float* verts, const int /*nv*/,
 	// Rasterize triangles.
 	for (int i = 0; i < nt; ++i)
 	{
-		const float* v0 = &verts[tris[i*3+0]*3];
-		const float* v1 = &verts[tris[i*3+1]*3];
-		const float* v2 = &verts[tris[i*3+2]*3];
+		const dtCoordinates v0( verts[tris[i*3+0]] );
+		const dtCoordinates v1( verts[tris[i*3+1]] );
+		const dtCoordinates v2( verts[tris[i*3+2]] );
 		// Rasterize.
 		rasterizeTri(v0, v1, v2, areas[i], solid, solid.bmin, solid.bmax, solid.cs, ics, ich, flagMergeThr);
 	}

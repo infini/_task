@@ -143,8 +143,8 @@ Sample_Debug::Sample_Debug() :
 				duReadContourSet(*m_cset, &io);
 				
 				printf("bmin=(%f,%f,%f) bmax=(%f,%f,%f)\n",
-					   m_cset->bmin[0], m_cset->bmin[1], m_cset->bmin[2],
-					   m_cset->bmax[0], m_cset->bmax[1], m_cset->bmax[2]);
+					   m_cset->bmin.X(), m_cset->bmin.Y(), m_cset->bmin.Z(),
+					   m_cset->bmax.X(), m_cset->bmax.Y(), m_cset->bmax.Z());
 				printf("cs=%f ch=%f\n", m_cset->cs, m_cset->ch);
 			}
 			else
@@ -329,29 +329,29 @@ void Sample_Debug::handleMeshChanged(InputGeom* geom)
 	m_geom = geom;
 }
 
-const float* Sample_Debug::getBoundsMin()
+const dtCoordinates* Sample_Debug::getBoundsMin()
 {
 	if (m_cset)
-		return m_cset->bmin;
+		return &m_cset->bmin;
 	if (m_chf)
-		return m_chf->bmin;
+		return &m_chf->bmin;
 	if (m_navMesh)
-		return m_bmin;
+		return &m_bmin;
 	return 0;
 }
 
-const float* Sample_Debug::getBoundsMax()
+const dtCoordinates* Sample_Debug::getBoundsMax()
 {
 	if (m_cset)
-		return m_cset->bmax;
+		return &m_cset->bmax;
 	if (m_chf)
-		return m_chf->bmax;
+		return &m_chf->bmax;
 	if (m_navMesh)
-		return m_bmax;
+		return &m_bmax;
 	return 0;
 }
 
-void Sample_Debug::handleClick(const float* s, const float* p, bool shift)
+void Sample_Debug::handleClick(const dtCoordinates& s, const dtCoordinates& p, bool shift)
 {
 	if (m_tool)
 		m_tool->handleClick(s, p, shift);

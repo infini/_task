@@ -261,7 +261,7 @@ void NavMeshPruneTool::handleMenu()
 	}
 }
 
-void NavMeshPruneTool::handleClick(const float* s, const float* p, bool shift)
+void NavMeshPruneTool::handleClick(const dtCoordinates& s, const dtCoordinates& p, bool shift)
 {
 	rcIgnoreUnused(s);
 	rcIgnoreUnused(shift);
@@ -283,7 +283,7 @@ void NavMeshPruneTool::handleClick(const float* s, const float* p, bool shift)
 		m_flags->init(nav);
 	}
 	
-	const float ext[3] = {2,4,2};
+	const dtCoordinates ext( 2.f,4.f,2.f );
 	dtQueryFilter filter;
 	dtPolyRef ref = 0;
 	query->findNearestPoly(p, ext, &filter, &ref, 0);
@@ -312,12 +312,12 @@ void NavMeshPruneTool::handleRender()
 		const float s = m_sample->getAgentRadius();
 		const unsigned int col = duRGBA(255,255,255,255);
 		dd.begin(DU_DRAW_LINES);
-		dd.vertex(m_hitPos[0]-s,m_hitPos[1],m_hitPos[2], col);
-		dd.vertex(m_hitPos[0]+s,m_hitPos[1],m_hitPos[2], col);
-		dd.vertex(m_hitPos[0],m_hitPos[1]-s,m_hitPos[2], col);
-		dd.vertex(m_hitPos[0],m_hitPos[1]+s,m_hitPos[2], col);
-		dd.vertex(m_hitPos[0],m_hitPos[1],m_hitPos[2]-s, col);
-		dd.vertex(m_hitPos[0],m_hitPos[1],m_hitPos[2]+s, col);
+		dd.vertex(m_hitPos.X()-s,m_hitPos.Y(),m_hitPos.Z(), col);
+		dd.vertex(m_hitPos.X()+s,m_hitPos.Y(),m_hitPos.Z(), col);
+		dd.vertex(m_hitPos.X(),m_hitPos.Y()-s,m_hitPos.Z(), col);
+		dd.vertex(m_hitPos.X(),m_hitPos.Y()+s,m_hitPos.Z(), col);
+		dd.vertex(m_hitPos.X(),m_hitPos.Y(),m_hitPos.Z()-s, col);
+		dd.vertex(m_hitPos.X(),m_hitPos.Y(),m_hitPos.Z()+s, col);
 		dd.end();
 	}
 

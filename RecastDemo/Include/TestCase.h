@@ -20,6 +20,7 @@
 #define TESTCASE_H
 
 #include "DetourNavMesh.h"
+#include "DetourCoordinates.h"
 
 class TestCase
 {
@@ -39,13 +40,13 @@ class TestCase
 		}
 		
 		TestType type;
-		float spos[3], epos[3];
-		float nspos[3], nepos[3];
+		dtCoordinates spos, epos;
+		dtCoordinates nspos, nepos;
 		float radius;
 		int includeFlags, excludeFlags;
 		bool expand;
 		
-		float* straight;
+		dtCoordinates* straight;
 		int nstraight;
 		dtPolyRef* polys;
 		int npolys;

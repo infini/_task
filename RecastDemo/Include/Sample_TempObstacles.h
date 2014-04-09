@@ -24,6 +24,8 @@
 #include "Recast.h"
 #include "ChunkyTriMesh.h"
 
+class dtCoordinates;
+
 
 class Sample_TempObstacles : public Sample
 {
@@ -74,13 +76,13 @@ public:
 	virtual bool handleBuild();
 	virtual void handleUpdate(const float dt);
 
-	void getTilePos(const float* pos, int& tx, int& ty);
+	void getTilePos(const dtCoordinates& pos, int& tx, int& ty);
 	
 	void renderCachedTile(const int tx, const int ty, const int type);
 	void renderCachedTileOverlay(const int tx, const int ty, double* proj, double* model, int* view);
 
-	void addTempObstacle(const float* pos);
-	void removeTempObstacle(const float* sp, const float* sq);
+	void addTempObstacle(const dtCoordinates& pos);
+	void removeTempObstacle(const dtCoordinates& sp, const dtCoordinates& sq);
 	void clearAllTempObstacles();
 };
 

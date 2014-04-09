@@ -27,12 +27,12 @@
 
 static const float DT_PI = 3.14159265f;
 
-static int sweepCircleCircle(const float* c0, const float r0, const float* v,
-							 const float* c1, const float r1,
+static int sweepCircleCircle(const dtCoordinates& c0, const float r0, const dtCoordinates& v,
+							 const dtCoordinates& c1, const float r1,
 							 float& tmin, float& tmax)
 {
 	static const float EPS = 0.0001f;
-	float s[3];
+	dtCoordinates s;
 	dtVsub(s,c1,c0);
 	float r = r0+r1;
 	float c = dtVdot2D(s,s) - r*r;
@@ -50,11 +50,11 @@ static int sweepCircleCircle(const float* c0, const float r0, const float* v,
 	return 1;
 }
 
-static int isectRaySeg(const float* ap, const float* u,
-					   const float* bp, const float* bq,
+static int isectRaySeg(const dtCoordinates& ap, const dtCoordinates& u,
+					   const dtCoordinates& bp, const dtCoordinates& bq,
 					   float& t)
 {
-	float v[3], w[3];
+	dtCoordinates v, w;
 	dtVsub(v,bq,bp);
 	dtVsub(w,ap,bp);
 	float d = dtVperp2D(u,v);
@@ -113,7 +113,7 @@ bool dtObstacleAvoidanceDebugData::init(const int maxSamples)
 	dtAssert(maxSamples);
 	m_maxSamples = maxSamples;
 
-	m_vel = (float*)dtAlloc(sizeof(float)*3*m_maxSamples, DT_ALLOC_PERM);
+	m_vel = (dtCoordinates*)dtAlloc(sizeof(dtCoordinates)*m_maxSamples, DT_ALLOC_PERM);
 	if (!m_vel)
 		return false;
 	m_pen = (float*)dtAlloc(sizeof(float)*m_maxSamples, DT_ALLOC_PERM);
@@ -143,7 +143,7 @@ void dtObstacleAvoidanceDebugData::reset()
 	m_nsamples = 0;
 }
 
-void dtObstacleAvoidanceDebugData::addSample(const float* vel, const float ssize, const float pen,
+void dtObstacleAvoidanceDebugData::addSample(const dtCoordinates& vel, const float ssize, const float pen,
 											 const float vpen, const float vcpen, const float spen, const float tpen)
 {
 	if (m_nsamples >= m_maxSamples)
@@ -155,7 +155,7 @@ void dtObstacleAvoidanceDebugData::addSample(const float* vel, const float ssize
 	dtAssert(m_vcpen);
 	dtAssert(m_spen);
 	dtAssert(m_tpen);
-	dtVcopy(&m_vel[m_nsamples*3], vel);
+	dtVcopy(m_vel[m_nsamples], vel);
 	m_ssize[m_nsamples] = ssize;
 	m_pen[m_nsamples] = pen;
 	m_vpen[m_nsamples] = vpen;
@@ -247,8 +247,8 @@ void dtObstacleAvoidanceQuery::reset()
 	m_nsegments = 0;
 }
 
-void dtObstacleAvoidanceQuery::addCircle(const float* pos, const float rad,
-										 const float* vel, const float* dvel)
+void dtObstacleAvoidanceQuery::addCircle(const dtCoordinates& pos, const float rad,
+										 const dtCoordinates& vel, const dtCoordinates& dvel)
 {
 	if (m_ncircles >= m_maxCircles)
 		return;
@@ -260,7 +260,7 @@ void dtObstacleAvoidanceQuery::addCircle(const float* pos, const float rad,
 	dtVcopy(cir->dvel, dvel);
 }
 
-void dtObstacleAvoidanceQuery::addSegment(const float* p, const float* q)
+void dtObstacleAvoidanceQuery::addSegment(const dtCoordinates& p, const dtCoordinates& q)
 {
 	if (m_nsegments > m_maxSegments)
 		return;
@@ -270,7 +270,7 @@ void dtObstacleAvoidanceQuery::addSegment(const float* p, const float* q)
 	dtVcopy(seg->q, q);
 }
 
-void dtObstacleAvoidanceQuery::prepare(const float* pos, const float* dvel)
+void dtObstacleAvoidanceQuery::prepare(const dtCoordinates& pos, const dtCoordinates& dvel)
 {
 	// Prepare obstacles
 	for (int i = 0; i < m_ncircles; ++i)
@@ -278,25 +278,24 @@ void dtObstacleAvoidanceQuery::prepare(const float* pos, const float* dvel)
 		dtObstacleCircle* cir = &m_circles[i];
 		
 		// Side
-		const float* pa = pos;
-		const float* pb = cir->p;
+		const dtCoordinates pa( pos );
+		const dtCoordinates pb( cir->p );
 		
-		const float orig[3] = {0,0};
-		float dv[3];
+		dtCoordinates dv;
 		dtVsub(cir->dp,pb,pa);
 		dtVnormalize(cir->dp);
 		dtVsub(dv, cir->dvel, dvel);
 		
-		const float a = dtTriArea2D(orig, cir->dp,dv);
+		const float a = dtTriArea2D(dtCoordinates(), cir->dp,dv);
 		if (a < 0.01f)
 		{
-			cir->np[0] = -cir->dp[2];
-			cir->np[2] = cir->dp[0];
+			cir->np.SetX( -cir->dp.Z() );
+			cir->np.SetZ( cir->dp.X() );
 		}
 		else
 		{
-			cir->np[0] = cir->dp[2];
-			cir->np[2] = -cir->dp[0];
+			cir->np.SetX( cir->dp.Z() );
+			cir->np.SetZ( -cir->dp.X() );
 		}
 	}	
 
@@ -311,9 +310,9 @@ void dtObstacleAvoidanceQuery::prepare(const float* pos, const float* dvel)
 	}	
 }
 
-float dtObstacleAvoidanceQuery::processSample(const float* vcand, const float cs,
-											  const float* pos, const float rad,
-											  const float* vel, const float* dvel,
+float dtObstacleAvoidanceQuery::processSample(const dtCoordinates& vcand, const float cs,
+											  const dtCoordinates& pos, const float rad,
+											  const dtCoordinates& vel, const dtCoordinates& dvel,
 											  dtObstacleAvoidanceDebugData* debug)
 {
 	// Find min time of impact and exit amongst all obstacles.
@@ -326,7 +325,7 @@ float dtObstacleAvoidanceQuery::processSample(const float* vcand, const float cs
 		const dtObstacleCircle* cir = &m_circles[i];
 			
 		// RVO
-		float vab[3];
+		dtCoordinates vab;
 		dtVscale(vab, vcand, 2);
 		dtVsub(vab, vab, vel);
 		dtVsub(vab, vab, cir->vel);
@@ -362,10 +361,10 @@ float dtObstacleAvoidanceQuery::processSample(const float* vcand, const float cs
 		if (seg->touch)
 		{
 			// Special case when the agent is very close to the segment.
-			float sdir[3], snorm[3];
+			dtCoordinates sdir, snorm;
 			dtVsub(sdir, seg->q, seg->p);
-			snorm[0] = -sdir[2];
-			snorm[2] = sdir[0];
+			snorm.SetX( -sdir.Z() );
+			snorm.SetZ( sdir.X() );
 			// If the velocity is pointing towards the segment, no collision.
 			if (dtVdot2D(snorm, vcand) < 0.0f)
 				continue;
@@ -404,8 +403,8 @@ float dtObstacleAvoidanceQuery::processSample(const float* vcand, const float cs
 	return penalty;
 }
 
-int dtObstacleAvoidanceQuery::sampleVelocityGrid(const float* pos, const float rad, const float vmax,
-												 const float* vel, const float* dvel, float* nvel,
+int dtObstacleAvoidanceQuery::sampleVelocityGrid(const dtCoordinates& pos, const float rad, const float vmax,
+												 const dtCoordinates& vel, const dtCoordinates& dvel, dtCoordinates& nvel,
 												 const dtObstacleAvoidanceParams* params,
 												 dtObstacleAvoidanceDebugData* debug)
 {
@@ -421,8 +420,8 @@ int dtObstacleAvoidanceQuery::sampleVelocityGrid(const float* pos, const float r
 	if (debug)
 		debug->reset();
 
-	const float cvx = dvel[0] * m_params.velBias;
-	const float cvz = dvel[2] * m_params.velBias;
+	const float cvx = dvel.X() * m_params.velBias;
+	const float cvz = dvel.Z() * m_params.velBias;
 	const float cs = vmax * 2 * (1 - m_params.velBias) / (float)(m_params.gridSize-1);
 	const float half = (m_params.gridSize-1)*cs*0.5f;
 		
@@ -433,12 +432,9 @@ int dtObstacleAvoidanceQuery::sampleVelocityGrid(const float* pos, const float r
 	{
 		for (int x = 0; x < m_params.gridSize; ++x)
 		{
-			float vcand[3];
-			vcand[0] = cvx + x*cs - half;
-			vcand[1] = 0;
-			vcand[2] = cvz + y*cs - half;
+			const dtCoordinates vcand( cvx + x*cs - half, 0, cvz + y*cs - half );
 			
-			if (dtSqr(vcand[0])+dtSqr(vcand[2]) > dtSqr(vmax+cs/2)) continue;
+			if (dtSqr(vcand.X())+dtSqr(vcand.Z()) > dtSqr(vmax+cs/2)) continue;
 			
 			const float penalty = processSample(vcand, cs, pos,rad,vel,dvel, debug);
 			ns++;
@@ -454,8 +450,8 @@ int dtObstacleAvoidanceQuery::sampleVelocityGrid(const float* pos, const float r
 }
 
 
-int dtObstacleAvoidanceQuery::sampleVelocityAdaptive(const float* pos, const float rad, const float vmax,
-													 const float* vel, const float* dvel, float* nvel,
+int dtObstacleAvoidanceQuery::sampleVelocityAdaptive(const dtCoordinates& pos, const float rad, const float vmax,
+													 const dtCoordinates& vel, const dtCoordinates& dvel, dtCoordinates& nvel,
 													 const dtObstacleAvoidanceParams* params,
 													 dtObstacleAvoidanceDebugData* debug)
 {
@@ -482,7 +478,7 @@ int dtObstacleAvoidanceQuery::sampleVelocityAdaptive(const float* pos, const flo
 	const int nd = dtClamp(ndivs, 1, DT_MAX_PATTERN_DIVS);
 	const int nr = dtClamp(nrings, 1, DT_MAX_PATTERN_RINGS);
 	const float da = (1.0f/nd) * DT_PI*2;
-	const float dang = dtMathAtan2f(dvel[2], dvel[0]);
+	const float dang = dtMathAtan2f(dvel.Z(), dvel.X());
 	
 	// Always add sample at zero
 	pat[npat*2+0] = 0;
@@ -504,24 +500,24 @@ int dtObstacleAvoidanceQuery::sampleVelocityAdaptive(const float* pos, const flo
 
 	// Start sampling.
 	float cr = vmax * (1.0f - m_params.velBias);
-	float res[3];
-	dtVset(res, dvel[0] * m_params.velBias, 0, dvel[2] * m_params.velBias);
+	dtCoordinates res;
+	dtVset(res, dvel.X() * m_params.velBias, 0, dvel.Z() * m_params.velBias);
 	int ns = 0;
 
 	for (int k = 0; k < depth; ++k)
 	{
 		float minPenalty = FLT_MAX;
-		float bvel[3];
+		dtCoordinates bvel;
 		dtVset(bvel, 0,0,0);
 		
 		for (int i = 0; i < npat; ++i)
 		{
-			float vcand[3];
-			vcand[0] = res[0] + pat[i*2+0]*cr;
-			vcand[1] = 0;
-			vcand[2] = res[2] + pat[i*2+1]*cr;
+			dtCoordinates vcand;
+			vcand.SetX( res.X() + pat[i*2+0]*cr );
+			vcand.SetY( 0 );
+			vcand.SetZ( res.Z() + pat[i*2+1]*cr );
 			
-			if (dtSqr(vcand[0])+dtSqr(vcand[2]) > dtSqr(vmax+0.001f)) continue;
+			if (dtSqr(vcand.X())+dtSqr(vcand.Z()) > dtSqr(vmax+0.001f)) continue;
 			
 			const float penalty = processSample(vcand,cr/10, pos,rad,vel,dvel, debug);
 			ns++;

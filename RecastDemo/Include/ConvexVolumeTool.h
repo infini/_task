@@ -20,6 +20,7 @@
 #define CONVEXVOLUMETOOL_H
 
 #include "Sample.h"
+#include <DetourCoordinates.h>
 
 // Tool to create convex volumess for InputGeom
 
@@ -32,7 +33,7 @@ class ConvexVolumeTool : public SampleTool
 	float m_boxDescent;
 	
 	static const int MAX_PTS = 12;
-	float m_pts[MAX_PTS*3];
+	dtCoordinates m_pts[MAX_PTS];
 	int m_npts;
 	int m_hull[MAX_PTS];
 	int m_nhull;
@@ -45,7 +46,7 @@ public:
 	virtual void init(Sample* sample);
 	virtual void reset();
 	virtual void handleMenu();
-	virtual void handleClick(const float* s, const float* p, bool shift);
+	virtual void handleClick(const dtCoordinates& s, const dtCoordinates& p, bool shift);
 	virtual void handleToggle();
 	virtual void handleStep();
 	virtual void handleUpdate(const float dt);

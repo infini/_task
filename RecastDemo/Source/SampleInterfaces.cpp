@@ -234,6 +234,12 @@ void DebugDrawGL::vertex(const float* pos, unsigned int color)
 	glVertex3fv(pos);
 }
 
+void DebugDrawGL::vertex(const dtCoordinates& pos, unsigned int color)
+{
+	glColor4ubv((GLubyte*)&color);
+	glVertex3f(pos.X(), pos.Y(), pos.Z());
+}
+
 void DebugDrawGL::vertex(const float x, const float y, const float z, unsigned int color)
 {
 	glColor4ubv((GLubyte*)&color);
@@ -245,6 +251,13 @@ void DebugDrawGL::vertex(const float* pos, unsigned int color, const float* uv)
 	glColor4ubv((GLubyte*)&color);
 	glTexCoord2fv(uv);
 	glVertex3fv(pos);
+}
+
+void DebugDrawGL::vertex(const dtCoordinates& pos, unsigned int color, const float* uv)
+{
+	glColor4ubv((GLubyte*)&color);
+	glTexCoord2fv(uv);
+	glVertex3f(pos.X(), pos.Y(), pos.Z());
 }
 
 void DebugDrawGL::vertex(const float x, const float y, const float z, unsigned int color, const float u, const float v)

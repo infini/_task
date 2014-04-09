@@ -2,7 +2,7 @@
 #define DETOURTILECACHE_H
 
 #include "DetourStatus.h"
-
+#include "DetourCoordinates.h"
 
 
 typedef unsigned int dtObstacleRef;
@@ -38,7 +38,8 @@ enum ObstacleState
 static const int DT_MAX_TOUCHED_TILES = 8;
 struct dtTileCacheObstacle
 {
-	float pos[3], radius, height;
+	dtCoordinates pos;
+	float radius, height;
 	dtCompressedTileRef touched[DT_MAX_TOUCHED_TILES];
 	dtCompressedTileRef pending[DT_MAX_TOUCHED_TILES];
 	unsigned short salt;
@@ -50,7 +51,7 @@ struct dtTileCacheObstacle
 
 struct dtTileCacheParams
 {
-	float orig[3];
+	dtCoordinates orig;
 	float cs, ch;
 	int width, height;
 	float walkableHeight;
@@ -103,10 +104,10 @@ public:
 	
 	dtStatus removeTile(dtCompressedTileRef ref, unsigned char** data, int* dataSize);
 	
-	dtStatus addObstacle(const float* pos, const float radius, const float height, dtObstacleRef* result);
+	dtStatus addObstacle(const dtCoordinates& pos, const float radius, const float height, dtObstacleRef* result);
 	dtStatus removeObstacle(const dtObstacleRef ref);
 	
-	dtStatus queryTiles(const float* bmin, const float* bmax,
+	dtStatus queryTiles(const dtCoordinates& bmin, const dtCoordinates& bmax,
 						dtCompressedTileRef* results, int* resultCount, const int maxResults) const;
 	
 	dtStatus update(const float /*dt*/, class dtNavMesh* navmesh);
@@ -115,9 +116,9 @@ public:
 	
 	dtStatus buildNavMeshTile(const dtCompressedTileRef ref, class dtNavMesh* navmesh);
 	
-	void calcTightTileBounds(const struct dtTileCacheLayerHeader* header, float* bmin, float* bmax) const;
+	void calcTightTileBounds(const struct dtTileCacheLayerHeader* header, dtCoordinates& bmin, dtCoordinates& bmax) const;
 	
-	void getObstacleBounds(const struct dtTileCacheObstacle* ob, float* bmin, float* bmax) const;
+	void getObstacleBounds(const struct dtTileCacheObstacle* ob, dtCoordinates& bmin, dtCoordinates& bmax) const;
 	
 
 	/// Encodes a tile id.

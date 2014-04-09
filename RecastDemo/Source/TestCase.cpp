@@ -136,10 +136,14 @@ bool TestCase::load(const char* filePath)
 			test->expand = false;
 			test->next = m_tests;
 			m_tests = test;
+			float spos[3], epos[3];
 			sscanf(row+2, "%f %f %f %f %f %f %x %x",
-				   &test->spos[0], &test->spos[1], &test->spos[2],
-				   &test->epos[0], &test->epos[1], &test->epos[2],
+				   &spos[0], &spos[1], &spos[2],
+				   &epos[0], &epos[1], &epos[2],
 				   &test->includeFlags, &test->excludeFlags);
+
+			test->spos = spos;
+			test->epos = epos;
 		}
 		else if (row[0] == 'r' && row[1] == 'c')
 		{
@@ -150,10 +154,14 @@ bool TestCase::load(const char* filePath)
 			test->expand = false;
 			test->next = m_tests;
 			m_tests = test;
+			float spos[3], epos[3];
 			sscanf(row+2, "%f %f %f %f %f %f %x %x",
-				   &test->spos[0], &test->spos[1], &test->spos[2],
-				   &test->epos[0], &test->epos[1], &test->epos[2],
+				   &spos[0], &spos[1], &spos[2],
+				   &epos[0], &epos[1], &epos[2],
 				   &test->includeFlags, &test->excludeFlags);
+
+			test->spos = spos;
+			test->epos = epos;
 		}
 	}
 	
@@ -181,8 +189,8 @@ void TestCase::doTests(dtNavMesh* navmesh, dtNavMeshQuery* navquery)
 	
 	static const int MAX_POLYS = 256;
 	dtPolyRef polys[MAX_POLYS];
-	float straight[MAX_POLYS*3];
-	const float polyPickExt[3] = {2,4,2};
+	dtCoordinates straight[MAX_POLYS];
+	const dtCoordinates polyPickExt( 2.f,4.f,2.f );
 	
 	for (Test* iter = m_tests; iter; iter = iter->next)
 	{
@@ -201,8 +209,8 @@ void TestCase::doTests(dtNavMesh* navmesh, dtNavMeshQuery* navquery)
 		TimeVal findNearestPolyStart = getPerfTime();
 		
 		dtPolyRef startRef, endRef;
-		navquery->findNearestPoly(iter->spos, polyPickExt, &filter, &startRef, iter->nspos);
-		navquery->findNearestPoly(iter->epos, polyPickExt, &filter, &endRef, iter->nepos);
+		navquery->findNearestPoly(iter->spos, polyPickExt, &filter, &startRef, &iter->nspos);
+		navquery->findNearestPoly(iter->epos, polyPickExt, &filter, &endRef, &iter->nepos);
 
 		TimeVal findNearestPolyEnd = getPerfTime();
 		iter->findNearestPolyTime += getPerfDeltaTimeUsec(findNearestPolyStart, findNearestPolyEnd);
@@ -239,21 +247,21 @@ void TestCase::doTests(dtNavMesh* navmesh, dtNavMeshQuery* navquery)
 		}
 		if (iter->nstraight)
 		{
-			iter->straight = new float[iter->nstraight*3];
-			memcpy(iter->straight, straight, sizeof(float)*3*iter->nstraight);
+			iter->straight = new dtCoordinates[iter->nstraight];
+			memcpy(iter->straight, straight, sizeof(dtCoordinates)*iter->nstraight);
 		}
 	}
 		else if (iter->type == TEST_RAYCAST)
 		{
 			float t = 0;
-			float hitNormal[3], hitPos[3];
+			dtCoordinates hitNormal, hitPos;
 			
-			iter->straight = new float[2*3];
+			iter->straight = new dtCoordinates[2];
 			iter->nstraight = 2;
 			
-			iter->straight[0] = iter->spos[0];
-			iter->straight[1] = iter->spos[1];
-			iter->straight[2] = iter->spos[2];
+			iter->straight[0].SetX( iter->spos.X() );
+			iter->straight[0].SetY( iter->spos.Y() );
+			iter->straight[0].SetZ( iter->spos.X() );
 			
 			TimeVal findPathStart = getPerfTime();
 			
@@ -277,9 +285,9 @@ void TestCase::doTests(dtNavMesh* navmesh, dtNavMeshQuery* navquery)
 			{
 				float h = 0;
 				navquery->getPolyHeight(polys[iter->npolys-1], hitPos, &h);
-				hitPos[1] = h;
+				hitPos.SetY( h );
 			}
-			dtVcopy(&iter->straight[3], hitPos);
+			dtVcopy(iter->straight[1], hitPos);
 
 			if (iter->npolys)
 			{
@@ -309,42 +317,42 @@ void TestCase::handleRender()
 	glBegin(GL_LINES);
 	for (Test* iter = m_tests; iter; iter = iter->next)
 	{
-		float dir[3];
+		dtCoordinates dir;
 		dtVsub(dir, iter->epos, iter->spos);
 		dtVnormalize(dir);
 		glColor4ub(128,25,0,192);
-		glVertex3f(iter->spos[0],iter->spos[1]-0.3f,iter->spos[2]);
-		glVertex3f(iter->spos[0],iter->spos[1]+0.3f,iter->spos[2]);
-		glVertex3f(iter->spos[0],iter->spos[1]+0.3f,iter->spos[2]);
-		glVertex3f(iter->spos[0]+dir[0]*0.3f,iter->spos[1]+0.3f+dir[1]*0.3f,iter->spos[2]+dir[2]*0.3f);
+		glVertex3f(iter->spos.X(),iter->spos.Y()-0.3f,iter->spos.Z());
+		glVertex3f(iter->spos.X(),iter->spos.Y()+0.3f,iter->spos.Z());
+		glVertex3f(iter->spos.X(),iter->spos.Y()+0.3f,iter->spos.Z());
+		glVertex3f(iter->spos.X()+dir.X()*0.3f,iter->spos.Y()+0.3f+dir.Y()*0.3f,iter->spos.Z()+dir.Z()*0.3f);
 		glColor4ub(51,102,0,129);
-		glVertex3f(iter->epos[0],iter->epos[1]-0.3f,iter->epos[2]);
-		glVertex3f(iter->epos[0],iter->epos[1]+0.3f,iter->epos[2]);
+		glVertex3f(iter->epos.X(),iter->epos.Y()-0.3f,iter->epos.Z());
+		glVertex3f(iter->epos.X(),iter->epos.Y()+0.3f,iter->epos.Z());
 
 		if (iter->expand)
 		{
 			const float s = 0.1f;
 			glColor4ub(255,32,0,128);
-			glVertex3f(iter->spos[0]-s,iter->spos[1],iter->spos[2]);
-			glVertex3f(iter->spos[0]+s,iter->spos[1],iter->spos[2]);
-			glVertex3f(iter->spos[0],iter->spos[1],iter->spos[2]-s);
-			glVertex3f(iter->spos[0],iter->spos[1],iter->spos[2]+s);
+			glVertex3f(iter->spos.X()-s,iter->spos.Y(),iter->spos.Z());
+			glVertex3f(iter->spos.X()+s,iter->spos.Y(),iter->spos.Z());
+			glVertex3f(iter->spos.X(),iter->spos.Y(),iter->spos.Z()-s);
+			glVertex3f(iter->spos.X(),iter->spos.Y(),iter->spos.Z()+s);
 			glColor4ub(255,192,0,255);
-			glVertex3f(iter->nspos[0]-s,iter->nspos[1],iter->nspos[2]);
-			glVertex3f(iter->nspos[0]+s,iter->nspos[1],iter->nspos[2]);
-			glVertex3f(iter->nspos[0],iter->nspos[1],iter->nspos[2]-s);
-			glVertex3f(iter->nspos[0],iter->nspos[1],iter->nspos[2]+s);
+			glVertex3f(iter->nspos.X()-s,iter->nspos.Y(),iter->nspos.Z());
+			glVertex3f(iter->nspos.X()+s,iter->nspos.Y(),iter->nspos.Z());
+			glVertex3f(iter->nspos.X(),iter->nspos.Y(),iter->nspos.Z()-s);
+			glVertex3f(iter->nspos.X(),iter->nspos.Y(),iter->nspos.Z()+s);
 			
 			glColor4ub(255,32,0,128);
-			glVertex3f(iter->epos[0]-s,iter->epos[1],iter->epos[2]);
-			glVertex3f(iter->epos[0]+s,iter->epos[1],iter->epos[2]);
-			glVertex3f(iter->epos[0],iter->epos[1],iter->epos[2]-s);
-			glVertex3f(iter->epos[0],iter->epos[1],iter->epos[2]+s);
+			glVertex3f(iter->epos.X()-s,iter->epos.Y(),iter->epos.Z());
+			glVertex3f(iter->epos.X()+s,iter->epos.Y(),iter->epos.Z());
+			glVertex3f(iter->epos.X(),iter->epos.Y(),iter->epos.Z()-s);
+			glVertex3f(iter->epos.X(),iter->epos.Y(),iter->epos.Z()+s);
 			glColor4ub(255,192,0,255);
-			glVertex3f(iter->nepos[0]-s,iter->nepos[1],iter->nepos[2]);
-			glVertex3f(iter->nepos[0]+s,iter->nepos[1],iter->nepos[2]);
-			glVertex3f(iter->nepos[0],iter->nepos[1],iter->nepos[2]-s);
-			glVertex3f(iter->nepos[0],iter->nepos[1],iter->nepos[2]+s);
+			glVertex3f(iter->nepos.X()-s,iter->nepos.Y(),iter->nepos.Z());
+			glVertex3f(iter->nepos.X()+s,iter->nepos.Y(),iter->nepos.Z());
+			glVertex3f(iter->nepos.X(),iter->nepos.Y(),iter->nepos.Z()-s);
+			glVertex3f(iter->nepos.X(),iter->nepos.Y(),iter->nepos.Z()+s);
 		}
 		
 		if (iter->expand)
@@ -354,8 +362,8 @@ void TestCase::handleRender()
 			
 		for (int i = 0; i < iter->nstraight-1; ++i)
 		{
-			glVertex3f(iter->straight[i*3+0],iter->straight[i*3+1]+0.3f,iter->straight[i*3+2]);
-			glVertex3f(iter->straight[(i+1)*3+0],iter->straight[(i+1)*3+1]+0.3f,iter->straight[(i+1)*3+2]);
+			glVertex3f(iter->straight[i].X(),iter->straight[i].Y()+0.3f,iter->straight[i].Z());
+			glVertex3f(iter->straight[(i+1)].X(),iter->straight[(i+1)].Y()+0.3f,iter->straight[(i+1)].Z());
 		}
 	}
 	glEnd();
@@ -372,27 +380,27 @@ bool TestCase::handleRenderOverlay(double* proj, double* model, int* view)
 
 	for (Test* iter = m_tests; iter; iter = iter->next)
 	{
-		float pt[3], dir[3];
+		dtCoordinates pt, dir;
 		if (iter->nstraight)
 		{
-			dtVcopy(pt, &iter->straight[3]);
+			dtVcopy(pt, iter->straight[1]);
 			if (dtVdist(pt, iter->spos) > LABEL_DIST)
 			{
 				dtVsub(dir, pt, iter->spos);
 				dtVnormalize(dir);
 				dtVmad(pt, iter->spos, dir, LABEL_DIST);
 			}
-			pt[1]+=0.5f;
+			pt.SetY( pt.Y()+0.5f );
 		}
 		else
 		{
 			dtVsub(dir, iter->epos, iter->spos);
 			dtVnormalize(dir);
 			dtVmad(pt, iter->spos, dir, LABEL_DIST);
-			pt[1]+=0.5f;
+			pt.SetY( pt.Y()+0.5f );
 		}
 		
-		if (gluProject((GLdouble)pt[0], (GLdouble)pt[1], (GLdouble)pt[2],
+		if (gluProject((GLdouble)pt.X(), (GLdouble)pt.Y(), (GLdouble)pt.Z(),
 					   model, proj, view, &x, &y, &z))
 		{
 			snprintf(text, 64, "Path %d\n", n);

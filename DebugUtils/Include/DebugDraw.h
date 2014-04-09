@@ -19,6 +19,8 @@
 #ifndef DEBUGDRAW_H
 #define DEBUGDRAW_H
 
+class dtCoordinates;
+
 // Some math headers don't have PI defined.
 static const float DU_PI = 3.14159265f;
 
@@ -49,6 +51,8 @@ struct duDebugDraw
 	///  @param color [in] color of the verts.
 	virtual void vertex(const float* pos, unsigned int color) = 0;
 
+	virtual void vertex(const dtCoordinates& pos, unsigned int color) = 0;
+
 	/// Submit a vertex
 	///  @param x,y,z [in] position of the verts.
 	///  @param color [in] color of the verts.
@@ -58,6 +62,8 @@ struct duDebugDraw
 	///  @param pos [in] position of the verts.
 	///  @param color [in] color of the verts.
 	virtual void vertex(const float* pos, unsigned int color, const float* uv) = 0;
+
+	virtual void vertex(const dtCoordinates& pos, unsigned int color, const float* uv) = 0;
 	
 	/// Submit a vertex
 	///  @param x,y,z [in] position of the verts.
@@ -189,7 +195,7 @@ void duAppendCylinder(struct duDebugDraw* dd, float minx, float miny, float minz
 
 class duDisplayList : public duDebugDraw
 {
-	float* m_pos;
+	dtCoordinates* m_pos;
 	unsigned int* m_color;
 	int m_size;
 	int m_cap;
@@ -207,6 +213,7 @@ public:
 	virtual void begin(duDebugDrawPrimitives prim, float size = 1.0f);
 	virtual void vertex(const float x, const float y, const float z, unsigned int color);
 	virtual void vertex(const float* pos, unsigned int color);
+	virtual void vertex(const dtCoordinates& pos, unsigned int color);
 	virtual void end();
 	void clear();
 	void draw(struct duDebugDraw* dd);

@@ -208,9 +208,9 @@ static int createBVTree( const dtNavMeshCreateParams& params, const int nvp, dtB
 		const int detailVertsCount	= params.detailMeshes[i*4+1];
 
 		for( int nth = 0; nth < detailVertsCount; ++nth ) {
-			const float height = params.detailVerts[(vertsBase+nth)*3+1];
-			const unsigned short miny = static_cast<unsigned short>( floorf((height - params.bmin[1]) / params.ch) );
-			const unsigned short maxy = static_cast<unsigned short>( ceilf((height - params.bmin[1]) / params.ch) );
+			const float height = params.detailVerts[(vertsBase+nth)].Y();
+			const unsigned short miny = static_cast<unsigned short>( floorf((height - params.bmin.Y()) / params.ch) );
+			const unsigned short maxy = static_cast<unsigned short>( ceilf((height - params.bmin.Y()) / params.ch) );
 			it.bmin[1] = dtMin( miny, it.bmin[1] );
 			it.bmax[1] = dtMax( maxy, it.bmax[1] );
 		}
@@ -276,6 +276,7 @@ static int createBVTree(const unsigned short* verts, const int /*nverts*/,
 }
 #endif // MODIFY_BV_TREE
 
+#ifndef MODIFY_OFF_MESH_CONNECTION
 static unsigned char classifyOffMeshPoint(const float* pt, const float* bmin, const float* bmax)
 {
 	static const unsigned char XP = 1<<0;
@@ -303,6 +304,7 @@ static unsigned char classifyOffMeshPoint(const float* pt, const float* bmin, co
 
 	return 0xff;	
 }
+#endif // !MODIFY_OFF_MESH_CONNECTION
 
 // TODO: Better error handling.
 
@@ -472,11 +474,11 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	
 	// Calculate data size
 	const int headerSize = dtAlign4(sizeof(dtMeshHeader));
-	const int vertsSize = dtAlign4(sizeof(float)*3*totVertCount);
+	const int vertsSize = dtAlign4(sizeof(dtCoordinates)*totVertCount);
 	const int polysSize = dtAlign4(sizeof(dtPoly)*totPolyCount);
 	const int linksSize = dtAlign4(sizeof(dtLink)*maxLinkCount);
 	const int detailMeshesSize = dtAlign4(sizeof(dtPolyDetail)*params->polyCount);
-	const int detailVertsSize = dtAlign4(sizeof(float)*3*uniqueDetailVertCount);
+	const int detailVertsSize = dtAlign4(sizeof(dtCoordinates)*uniqueDetailVertCount);
 	const int detailTrisSize = dtAlign4(sizeof(unsigned char)*4*detailTriCount);
 	const int bvTreeSize = params->buildBvTree ? dtAlign4(sizeof(dtBVNode)*params->polyCount*2) : 0;
 #ifndef MODIFY_OFF_MESH_CONNECTION
@@ -509,11 +511,11 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	
 	unsigned char* d = data;
 	dtMeshHeader* header = (dtMeshHeader*)d; d += headerSize;
-	float* navVerts = (float*)d; d += vertsSize;
+	dtCoordinates* navVerts = (dtCoordinates*)d; d += vertsSize;
 	dtPoly* navPolys = (dtPoly*)d; d += polysSize;
 	d += linksSize;
 	dtPolyDetail* navDMeshes = (dtPolyDetail*)d; d += detailMeshesSize;
-	float* navDVerts = (float*)d; d += detailVertsSize;
+	dtCoordinates* navDVerts = (dtCoordinates*)d; d += detailVertsSize;
 	unsigned char* navDTris = (unsigned char*)d; d += detailTrisSize;
 	dtBVNode* navBvtree = (dtBVNode*)d; d += bvTreeSize;
 #ifndef MODIFY_OFF_MESH_CONNECTION
@@ -565,10 +567,10 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	for (int i = 0; i < params->vertCount; ++i)
 	{
 		const unsigned short* iv = &params->verts[i*3];
-		float* v = &navVerts[i*3];
-		v[0] = params->bmin[0] + iv[0] * params->cs;
-		v[1] = params->bmin[1] + iv[1] * params->ch;
-		v[2] = params->bmin[2] + iv[2] * params->cs;
+		dtCoordinates* v = &navVerts[i];
+		v->SetX( params->bmin.X() + iv[0] * params->cs );
+		v->SetY( params->bmin.Y() + iv[1] * params->ch );
+		v->SetZ( params->bmin.Z() + iv[2] * params->cs );
 	}
 	// Off-mesh link vertices.
 #ifndef MODIFY_OFF_MESH_CONNECTION
@@ -665,7 +667,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 			// Copy vertices except the first 'nv' verts which are equal to nav poly verts.
 			if (ndv-nv)
 			{
-				memcpy(&navDVerts[vbase*3], &params->detailVerts[(vb+nv)*3], sizeof(float)*3*(ndv-nv));
+				memcpy(&navDVerts[vbase], &params->detailVerts[(vb+nv)], sizeof(dtCoordinates)*(ndv-nv));
 				vbase += (unsigned short)(ndv-nv);
 			}
 		}
@@ -753,54 +755,54 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 	return true;
 }
 
-bool dtNavMeshHeaderSwapEndian(unsigned char* data, const int /*dataSize*/)
-{
-	dtMeshHeader* header = (dtMeshHeader*)data;
-	
-	int swappedMagic = DT_NAVMESH_MAGIC;
-	int swappedVersion = DT_NAVMESH_VERSION;
-	dtSwapEndian(&swappedMagic);
-	dtSwapEndian(&swappedVersion);
-	
-	if ((header->magic != DT_NAVMESH_MAGIC || header->version != DT_NAVMESH_VERSION) &&
-		(header->magic != swappedMagic || header->version != swappedVersion))
-	{
-		return false;
-	}
-		
-	dtSwapEndian(&header->magic);
-	dtSwapEndian(&header->version);
-	dtSwapEndian(&header->x);
-	dtSwapEndian(&header->y);
-	dtSwapEndian(&header->layer);
-	dtSwapEndian(&header->userId);
-	dtSwapEndian(&header->polyCount);
-	dtSwapEndian(&header->vertCount);
-	dtSwapEndian(&header->maxLinkCount);
-	dtSwapEndian(&header->detailMeshCount);
-	dtSwapEndian(&header->detailVertCount);
-	dtSwapEndian(&header->detailTriCount);
-	dtSwapEndian(&header->bvNodeCount);
-#ifndef MODIFY_OFF_MESH_CONNECTION
-	dtSwapEndian(&header->offMeshConCount);
-	dtSwapEndian(&header->offMeshBase);
-#endif // !MODIFY_OFF_MESH_CONNECTION
-	dtSwapEndian(&header->walkableHeight);
-	dtSwapEndian(&header->walkableRadius);
-	dtSwapEndian(&header->walkableClimb);
-	dtSwapEndian(&header->bmin[0]);
-	dtSwapEndian(&header->bmin[1]);
-	dtSwapEndian(&header->bmin[2]);
-	dtSwapEndian(&header->bmax[0]);
-	dtSwapEndian(&header->bmax[1]);
-	dtSwapEndian(&header->bmax[2]);
-	dtSwapEndian(&header->bvQuantFactor);
-	dtSwapEndian(&header->jumpMeshConnectionCount);
-
-	// Freelist index and pointers are updated when tile is added, no need to swap.
-
-	return true;
-}
+// bool dtNavMeshHeaderSwapEndian(unsigned char* data, const int /*dataSize*/)
+// {
+// 	dtMeshHeader* header = (dtMeshHeader*)data;
+// 	
+// 	int swappedMagic = DT_NAVMESH_MAGIC;
+// 	int swappedVersion = DT_NAVMESH_VERSION;
+// 	dtSwapEndian(&swappedMagic);
+// 	dtSwapEndian(&swappedVersion);
+// 	
+// 	if ((header->magic != DT_NAVMESH_MAGIC || header->version != DT_NAVMESH_VERSION) &&
+// 		(header->magic != swappedMagic || header->version != swappedVersion))
+// 	{
+// 		return false;
+// 	}
+// 		
+// 	dtSwapEndian(&header->magic);
+// 	dtSwapEndian(&header->version);
+// 	dtSwapEndian(&header->x);
+// 	dtSwapEndian(&header->y);
+// 	dtSwapEndian(&header->layer);
+// 	dtSwapEndian(&header->userId);
+// 	dtSwapEndian(&header->polyCount);
+// 	dtSwapEndian(&header->vertCount);
+// 	dtSwapEndian(&header->maxLinkCount);
+// 	dtSwapEndian(&header->detailMeshCount);
+// 	dtSwapEndian(&header->detailVertCount);
+// 	dtSwapEndian(&header->detailTriCount);
+// 	dtSwapEndian(&header->bvNodeCount);
+// #ifndef MODIFY_OFF_MESH_CONNECTION
+// 	dtSwapEndian(&header->offMeshConCount);
+// 	dtSwapEndian(&header->offMeshBase);
+// #endif // !MODIFY_OFF_MESH_CONNECTION
+// 	dtSwapEndian(&header->walkableHeight);
+// 	dtSwapEndian(&header->walkableRadius);
+// 	dtSwapEndian(&header->walkableClimb);
+// 	dtSwapEndian(&header->bmin[0]);
+// 	dtSwapEndian(&header->bmin[1]);
+// 	dtSwapEndian(&header->bmin[2]);
+// 	dtSwapEndian(&header->bmax[0]);
+// 	dtSwapEndian(&header->bmax[1]);
+// 	dtSwapEndian(&header->bmax[2]);
+// 	dtSwapEndian(&header->bvQuantFactor);
+// 	dtSwapEndian(&header->jumpMeshConnectionCount);
+// 
+// 	// Freelist index and pointers are updated when tile is added, no need to swap.
+// 
+// 	return true;
+// }
 
 /// @par
 ///
@@ -808,118 +810,118 @@ bool dtNavMeshHeaderSwapEndian(unsigned char* data, const int /*dataSize*/)
 /// Call #dtNavMeshHeaderSwapEndian() first on the data if the data is expected to be in wrong endianess 
 /// to start with. Call #dtNavMeshHeaderSwapEndian() after the data has been swapped if converting from 
 /// native to foreign endianess.
-bool dtNavMeshDataSwapEndian(unsigned char* data, const int /*dataSize*/)
-{
-	// Make sure the data is in right format.
-	dtMeshHeader* header = (dtMeshHeader*)data;
-	if (header->magic != DT_NAVMESH_MAGIC)
-		return false;
-	if (header->version != DT_NAVMESH_VERSION)
-		return false;
-	
-	// Patch header pointers.
-	const int headerSize = dtAlign4(sizeof(dtMeshHeader));
-	const int vertsSize = dtAlign4(sizeof(float)*3*header->vertCount);
-	const int polysSize = dtAlign4(sizeof(dtPoly)*header->polyCount);
-	const int linksSize = dtAlign4(sizeof(dtLink)*(header->maxLinkCount));
-	const int detailMeshesSize = dtAlign4(sizeof(dtPolyDetail)*header->detailMeshCount);
-	const int detailVertsSize = dtAlign4(sizeof(float)*3*header->detailVertCount);
-	const int detailTrisSize = dtAlign4(sizeof(unsigned char)*4*header->detailTriCount);
-	const int bvtreeSize = dtAlign4(sizeof(dtBVNode)*header->bvNodeCount);
-#ifndef MODIFY_OFF_MESH_CONNECTION
-	const int offMeshLinksSize = dtAlign4(sizeof(dtOffMeshConnection)*header->offMeshConCount);
-#endif // !MODIFY_OFF_MESH_CONNECTION
-#ifdef MODIFY_OFF_MESH_CONNECTION
-	const int jumpMeshConnectionSize = dtAlign4(sizeof(dtJumpMeshConnection)*header->jumpMeshConnectionCount);
-	const int jumpMeshLinkSize = dtAlign4(sizeof(dtJumpMeshLink)*header->jumpMeshConnectionCount);
-#endif // MODIFY_OFF_MESH_CONNECTION
-	
-	unsigned char* d = data + headerSize;
-	float* verts = (float*)d; d += vertsSize;
-	dtPoly* polys = (dtPoly*)d; d += polysSize;
-	/*dtLink* links = (dtLink*)d;*/ d += linksSize;
-	dtPolyDetail* detailMeshes = (dtPolyDetail*)d; d += detailMeshesSize;
-	float* detailVerts = (float*)d; d += detailVertsSize;
-	/*unsigned char* detailTris = (unsigned char*)d;*/ d += detailTrisSize;
-	dtBVNode* bvTree = (dtBVNode*)d; d += bvtreeSize;
-#ifndef MODIFY_OFF_MESH_CONNECTION
-	dtOffMeshConnection* offMeshCons = (dtOffMeshConnection*)d; d += offMeshLinksSize;
-#endif // !MODIFY_OFF_MESH_CONNECTION
-#ifdef MODIFY_OFF_MESH_CONNECTION
-	dtJumpMeshConnection* jumpMeshConnection = (dtJumpMeshConnection*)d; d += jumpMeshConnectionSize;
-	d += jumpMeshLinkSize;
-#endif // MODIFY_OFF_MESH_CONNECTION
-	
-	// Vertices
-	for (int i = 0; i < header->vertCount*3; ++i)
-	{
-		dtSwapEndian(&verts[i]);
-	}
-
-	// Polys
-	for (int i = 0; i < header->polyCount; ++i)
-	{
-		dtPoly* p = &polys[i];
-		// poly->firstLink is update when tile is added, no need to swap.
-		for (int j = 0; j < DT_VERTS_PER_POLYGON; ++j)
-		{
-			dtSwapEndian(&p->verts[j]);
-			dtSwapEndian(&p->neis[j]);
-		}
-		dtSwapEndian(&p->flags);
-	}
-
-	// Links are rebuild when tile is added, no need to swap.
-
-	// Detail meshes
-	for (int i = 0; i < header->detailMeshCount; ++i)
-	{
-		dtPolyDetail* pd = &detailMeshes[i];
-		dtSwapEndian(&pd->vertBase);
-		dtSwapEndian(&pd->triBase);
-	}
-	
-	// Detail verts
-	for (int i = 0; i < header->detailVertCount*3; ++i)
-	{
-		dtSwapEndian(&detailVerts[i]);
-	}
-
-	// BV-tree
-	for (int i = 0; i < header->bvNodeCount; ++i)
-	{
-		dtBVNode* node = &bvTree[i];
-		for (int j = 0; j < 3; ++j)
-		{
-			dtSwapEndian(&node->bmin[j]);
-			dtSwapEndian(&node->bmax[j]);
-		}
-		dtSwapEndian(&node->i);
-	}
-
-	// Off-mesh Connections.
-#ifndef MODIFY_OFF_MESH_CONNECTION
-	for (int i = 0; i < header->offMeshConCount; ++i)
-	{
-		dtOffMeshConnection* con = &offMeshCons[i];
-		for (int j = 0; j < 6; ++j)
-			dtSwapEndian(&con->pos[j]);
-		dtSwapEndian(&con->rad);
-		dtSwapEndian(&con->poly);
-	}
-#endif // !MODIFY_OFF_MESH_CONNECTION
-
-#ifdef MODIFY_OFF_MESH_CONNECTION
-	for( int nth = 0; nth < header->jumpMeshConnectionCount; ++nth ) {
-		dtJumpMeshConnection* jp = &jumpMeshConnection[nth];
-		for( int i = 0; i < 3; ++i ) {
-			dtSwapEndian( &jp->startPosition[i] );
-		}
-		for( int i = 0; i < 3; ++i ) {
-			dtSwapEndian( &jp->endPosition[i] );
-		}
-	}
-#endif // MODIFY_OFF_MESH_CONNECTION
-	
-	return true;
-}
+// bool dtNavMeshDataSwapEndian(unsigned char* data, const int /*dataSize*/)
+// {
+// 	// Make sure the data is in right format.
+// 	dtMeshHeader* header = (dtMeshHeader*)data;
+// 	if (header->magic != DT_NAVMESH_MAGIC)
+// 		return false;
+// 	if (header->version != DT_NAVMESH_VERSION)
+// 		return false;
+// 	
+// 	// Patch header pointers.
+// 	const int headerSize = dtAlign4(sizeof(dtMeshHeader));
+// 	const int vertsSize = dtAlign4(sizeof(float)*3*header->vertCount);
+// 	const int polysSize = dtAlign4(sizeof(dtPoly)*header->polyCount);
+// 	const int linksSize = dtAlign4(sizeof(dtLink)*(header->maxLinkCount));
+// 	const int detailMeshesSize = dtAlign4(sizeof(dtPolyDetail)*header->detailMeshCount);
+// 	const int detailVertsSize = dtAlign4(sizeof(float)*3*header->detailVertCount);
+// 	const int detailTrisSize = dtAlign4(sizeof(unsigned char)*4*header->detailTriCount);
+// 	const int bvtreeSize = dtAlign4(sizeof(dtBVNode)*header->bvNodeCount);
+// #ifndef MODIFY_OFF_MESH_CONNECTION
+// 	const int offMeshLinksSize = dtAlign4(sizeof(dtOffMeshConnection)*header->offMeshConCount);
+// #endif // !MODIFY_OFF_MESH_CONNECTION
+// #ifdef MODIFY_OFF_MESH_CONNECTION
+// 	const int jumpMeshConnectionSize = dtAlign4(sizeof(dtJumpMeshConnection)*header->jumpMeshConnectionCount);
+// 	const int jumpMeshLinkSize = dtAlign4(sizeof(dtJumpMeshLink)*header->jumpMeshConnectionCount);
+// #endif // MODIFY_OFF_MESH_CONNECTION
+// 	
+// 	unsigned char* d = data + headerSize;
+// 	float* verts = (float*)d; d += vertsSize;
+// 	dtPoly* polys = (dtPoly*)d; d += polysSize;
+// 	/*dtLink* links = (dtLink*)d;*/ d += linksSize;
+// 	dtPolyDetail* detailMeshes = (dtPolyDetail*)d; d += detailMeshesSize;
+// 	float* detailVerts = (float*)d; d += detailVertsSize;
+// 	/*unsigned char* detailTris = (unsigned char*)d;*/ d += detailTrisSize;
+// 	dtBVNode* bvTree = (dtBVNode*)d; d += bvtreeSize;
+// #ifndef MODIFY_OFF_MESH_CONNECTION
+// 	dtOffMeshConnection* offMeshCons = (dtOffMeshConnection*)d; d += offMeshLinksSize;
+// #endif // !MODIFY_OFF_MESH_CONNECTION
+// #ifdef MODIFY_OFF_MESH_CONNECTION
+// 	dtJumpMeshConnection* jumpMeshConnection = (dtJumpMeshConnection*)d; d += jumpMeshConnectionSize;
+// 	d += jumpMeshLinkSize;
+// #endif // MODIFY_OFF_MESH_CONNECTION
+// 	
+// 	// Vertices
+// 	for (int i = 0; i < header->vertCount*3; ++i)
+// 	{
+// 		dtSwapEndian(&verts[i]);
+// 	}
+// 
+// 	// Polys
+// 	for (int i = 0; i < header->polyCount; ++i)
+// 	{
+// 		dtPoly* p = &polys[i];
+// 		// poly->firstLink is update when tile is added, no need to swap.
+// 		for (int j = 0; j < DT_VERTS_PER_POLYGON; ++j)
+// 		{
+// 			dtSwapEndian(&p->verts[j]);
+// 			dtSwapEndian(&p->neis[j]);
+// 		}
+// 		dtSwapEndian(&p->flags);
+// 	}
+// 
+// 	// Links are rebuild when tile is added, no need to swap.
+// 
+// 	// Detail meshes
+// 	for (int i = 0; i < header->detailMeshCount; ++i)
+// 	{
+// 		dtPolyDetail* pd = &detailMeshes[i];
+// 		dtSwapEndian(&pd->vertBase);
+// 		dtSwapEndian(&pd->triBase);
+// 	}
+// 	
+// 	// Detail verts
+// 	for (int i = 0; i < header->detailVertCount*3; ++i)
+// 	{
+// 		dtSwapEndian(&detailVerts[i]);
+// 	}
+// 
+// 	// BV-tree
+// 	for (int i = 0; i < header->bvNodeCount; ++i)
+// 	{
+// 		dtBVNode* node = &bvTree[i];
+// 		for (int j = 0; j < 3; ++j)
+// 		{
+// 			dtSwapEndian(&node->bmin[j]);
+// 			dtSwapEndian(&node->bmax[j]);
+// 		}
+// 		dtSwapEndian(&node->i);
+// 	}
+// 
+// 	// Off-mesh Connections.
+// #ifndef MODIFY_OFF_MESH_CONNECTION
+// 	for (int i = 0; i < header->offMeshConCount; ++i)
+// 	{
+// 		dtOffMeshConnection* con = &offMeshCons[i];
+// 		for (int j = 0; j < 6; ++j)
+// 			dtSwapEndian(&con->pos[j]);
+// 		dtSwapEndian(&con->rad);
+// 		dtSwapEndian(&con->poly);
+// 	}
+// #endif // !MODIFY_OFF_MESH_CONNECTION
+// 
+// #ifdef MODIFY_OFF_MESH_CONNECTION
+// 	for( int nth = 0; nth < header->jumpMeshConnectionCount; ++nth ) {
+// 		dtJumpMeshConnection* jp = &jumpMeshConnection[nth];
+// 		for( int i = 0; i < 3; ++i ) {
+// 			dtSwapEndian( &jp->startPosition[i] );
+// 		}
+// 		for( int i = 0; i < 3; ++i ) {
+// 			dtSwapEndian( &jp->endPosition[i] );
+// 		}
+// 	}
+// #endif // MODIFY_OFF_MESH_CONNECTION
+// 	
+// 	return true;
+// }

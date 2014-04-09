@@ -1953,16 +1953,11 @@ dtStatus dtBuildTileCachePolyMesh(dtTileCacheAlloc* alloc,
 	return DT_SUCCESS;
 }
 
-dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-							const float* pos, const float radius, const float height, const unsigned char areaId)
+dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const dtCoordinates& orig, const float cs, const float ch,
+							const dtCoordinates& pos, const float radius, const float height, const unsigned char areaId)
 {
-	float bmin[3], bmax[3];
-	bmin[0] = pos[0] - radius;
-	bmin[1] = pos[1];
-	bmin[2] = pos[2] - radius;
-	bmax[0] = pos[0] + radius;
-	bmax[1] = pos[1] + height;
-	bmax[2] = pos[2] + radius;
+	const dtCoordinates bmin( pos.X() - radius, pos.Y(), pos.Z() - radius );
+	const dtCoordinates bmax( pos.X() + radius, pos.Y() + height, pos.Z() + radius );
 	const float r2 = dtSqr(radius/cs + 0.5f);
 
 	const int w = (int)layer.header->width;
@@ -1970,15 +1965,15 @@ dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const float* orig, const fl
 	const float ics = 1.0f/cs;
 	const float ich = 1.0f/ch;
 	
-	const float px = (pos[0]-orig[0])*ics;
-	const float pz = (pos[2]-orig[2])*ics;
+	const float px = (pos.X()-orig.X())*ics;
+	const float pz = (pos.Z()-orig.Z())*ics;
 	
-	int minx = (int)dtMathFloorf((bmin[0]-orig[0])*ics);
-	int miny = (int)dtMathFloorf((bmin[1]-orig[1])*ich);
-	int minz = (int)dtMathFloorf((bmin[2]-orig[2])*ics);
-	int maxx = (int)dtMathFloorf((bmax[0]-orig[0])*ics);
-	int maxy = (int)dtMathFloorf((bmax[1]-orig[1])*ich);
-	int maxz = (int)dtMathFloorf((bmax[2]-orig[2])*ics);
+	int minx = (int)dtMathFloorf((bmin.X()-orig.X())*ics);
+	int miny = (int)dtMathFloorf((bmin.Y()-orig.Y())*ich);
+	int minz = (int)dtMathFloorf((bmin.Z()-orig.Z())*ics);
+	int maxx = (int)dtMathFloorf((bmax.X()-orig.X())*ics);
+	int maxy = (int)dtMathFloorf((bmax.Y()-orig.Y())*ich);
+	int maxz = (int)dtMathFloorf((bmax.Z()-orig.Z())*ics);
 
 	if (maxx < 0) return DT_SUCCESS;
 	if (minx >= w) return DT_SUCCESS;
@@ -2119,38 +2114,38 @@ dtStatus dtDecompressTileCacheLayer(dtTileCacheAlloc* alloc, dtTileCacheCompress
 
 
 
-bool dtTileCacheHeaderSwapEndian(unsigned char* data, const int dataSize)
-{
-	dtIgnoreUnused(dataSize);
-	dtTileCacheLayerHeader* header = (dtTileCacheLayerHeader*)data;
-	
-	int swappedMagic = DT_TILECACHE_MAGIC;
-	int swappedVersion = DT_TILECACHE_VERSION;
-	dtSwapEndian(&swappedMagic);
-	dtSwapEndian(&swappedVersion);
-	
-	if ((header->magic != DT_TILECACHE_MAGIC || header->version != DT_TILECACHE_VERSION) &&
-		(header->magic != swappedMagic || header->version != swappedVersion))
-	{
-		return false;
-	}
-	
-	dtSwapEndian(&header->magic);
-	dtSwapEndian(&header->version);
-	dtSwapEndian(&header->tx);
-	dtSwapEndian(&header->ty);
-	dtSwapEndian(&header->tlayer);
-	dtSwapEndian(&header->bmin[0]);
-	dtSwapEndian(&header->bmin[1]);
-	dtSwapEndian(&header->bmin[2]);
-	dtSwapEndian(&header->bmax[0]);
-	dtSwapEndian(&header->bmax[1]);
-	dtSwapEndian(&header->bmax[2]);
-	dtSwapEndian(&header->hmin);
-	dtSwapEndian(&header->hmax);
-	
-	// width, height, minx, maxx, miny, maxy are unsigned char, no need to swap.
-	
-	return true;
-}
+// bool dtTileCacheHeaderSwapEndian(unsigned char* data, const int dataSize)
+// {
+// 	dtIgnoreUnused(dataSize);
+// 	dtTileCacheLayerHeader* header = (dtTileCacheLayerHeader*)data;
+// 	
+// 	int swappedMagic = DT_TILECACHE_MAGIC;
+// 	int swappedVersion = DT_TILECACHE_VERSION;
+// 	dtSwapEndian(&swappedMagic);
+// 	dtSwapEndian(&swappedVersion);
+// 	
+// 	if ((header->magic != DT_TILECACHE_MAGIC || header->version != DT_TILECACHE_VERSION) &&
+// 		(header->magic != swappedMagic || header->version != swappedVersion))
+// 	{
+// 		return false;
+// 	}
+// 	
+// 	dtSwapEndian(&header->magic);
+// 	dtSwapEndian(&header->version);
+// 	dtSwapEndian(&header->tx);
+// 	dtSwapEndian(&header->ty);
+// 	dtSwapEndian(&header->tlayer);
+// 	dtSwapEndian(&header->bmin[0]);
+// 	dtSwapEndian(&header->bmin[1]);
+// 	dtSwapEndian(&header->bmin[2]);
+// 	dtSwapEndian(&header->bmax[0]);
+// 	dtSwapEndian(&header->bmax[1]);
+// 	dtSwapEndian(&header->bmax[2]);
+// 	dtSwapEndian(&header->hmin);
+// 	dtSwapEndian(&header->hmax);
+// 	
+// 	// width, height, minx, maxx, miny, maxy are unsigned char, no need to swap.
+// 	
+// 	return true;
+// }
 

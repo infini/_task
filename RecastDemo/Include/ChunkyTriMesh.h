@@ -19,6 +19,8 @@
 #ifndef CHUNKYTRIMESH_H
 #define CHUNKYTRIMESH_H
 
+class dtCoordinates;
+
 struct rcChunkyTriMeshNode
 {
 	float bmin[2], bmax[2];
@@ -39,7 +41,7 @@ struct rcChunkyTriMesh
 
 /// Creates partitioned triangle mesh (AABB tree),
 /// where each node contains at max trisPerChunk triangles.
-bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
+bool rcCreateChunkyTriMesh(const dtCoordinates* verts, const int* tris, int ntris,
 						   int trisPerChunk, rcChunkyTriMesh* cm);
 
 /// Returns the chunk indices which overlap the input rectable.

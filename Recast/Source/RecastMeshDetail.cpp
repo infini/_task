@@ -38,34 +38,34 @@ struct rcHeightPatch
 };
 
 
-inline float vdot2(const float* a, const float* b)
+inline float vdot2(const dtCoordinates& a, const dtCoordinates& b)
 {
-	return a[0]*b[0] + a[2]*b[2];
+	return a.X()*b.X() + a.Z()*b.Z();
 }
 
-inline float vdistSq2(const float* p, const float* q)
+inline float vdistSq2(const dtCoordinates& p, const dtCoordinates& q)
 {
-	const float dx = q[0] - p[0];
-	const float dy = q[2] - p[2];
+	const float dx = q.X() - p.X();
+	const float dy = q.Z() - p.Z();
 	return dx*dx + dy*dy;
 }
 
-inline float vdist2(const float* p, const float* q)
+inline float vdist2(const dtCoordinates& p, const dtCoordinates& q)
 {
 	return sqrtf(vdistSq2(p,q));
 }
 
-inline float vcross2(const float* p1, const float* p2, const float* p3)
+inline float vcross2(const dtCoordinates& p1, const dtCoordinates& p2, const dtCoordinates& p3)
 { 
-	const float u1 = p2[0] - p1[0];
-	const float v1 = p2[2] - p1[2];
-	const float u2 = p3[0] - p1[0];
-	const float v2 = p3[2] - p1[2];
+	const float u1 = p2.X() - p1.X();
+	const float v1 = p2.Z() - p1.Z();
+	const float u2 = p3.X() - p1.X();
+	const float v2 = p3.Z() - p1.Z();
 	return u1 * v2 - v1 * u2;
 }
 
-static bool circumCircle(const float* p1, const float* p2, const float* p3,
-						 float* c, float& r)
+static bool circumCircle(const dtCoordinates& p1, const dtCoordinates& p2, const dtCoordinates& p3,
+						 dtCoordinates& c, float& r)
 {
 	static const float EPS = 1e-6f;
 	
@@ -75,21 +75,21 @@ static bool circumCircle(const float* p1, const float* p2, const float* p3,
 		const float p1Sq = vdot2(p1,p1);
 		const float p2Sq = vdot2(p2,p2);
 		const float p3Sq = vdot2(p3,p3);
-		c[0] = (p1Sq*(p2[2]-p3[2]) + p2Sq*(p3[2]-p1[2]) + p3Sq*(p1[2]-p2[2])) / (2*cp);
-		c[2] = (p1Sq*(p3[0]-p2[0]) + p2Sq*(p1[0]-p3[0]) + p3Sq*(p2[0]-p1[0])) / (2*cp);
+		c.SetX( (p1Sq*(p2.Z()-p3.Z()) + p2Sq*(p3.Z()-p1.Z()) + p3Sq*(p1.Z()-p2.Z())) / (2*cp) );
+		c.SetZ( (p1Sq*(p3.X()-p2.X()) + p2Sq*(p1.X()-p3.X()) + p3Sq*(p2.X()-p1.X())) / (2*cp) );
 		r = vdist2(c, p1);
 		return true;
 	}
 
-	c[0] = p1[0];
-	c[2] = p1[2];
+	c.SetX( p1.X() );
+	c.SetZ( p1.Z() );
 	r = 0;
 	return false;
 }
 
-static float distPtTri(const float* p, const float* a, const float* b, const float* c)
+static float distPtTri(const dtCoordinates& p, const dtCoordinates& a, const dtCoordinates& b, const dtCoordinates& c)
 {
-	float v0[3], v1[3], v2[3];
+	dtCoordinates v0, v1, v2;
 	rcVsub(v0, c,a);
 	rcVsub(v1, b,a);
 	rcVsub(v2, p,a);
@@ -109,20 +109,20 @@ static float distPtTri(const float* p, const float* a, const float* b, const flo
 	static const float EPS = 1e-4f;
 	if (u >= -EPS && v >= -EPS && (u+v) <= 1+EPS)
 	{
-		const float y = a[1] + v0[1]*u + v1[1]*v;
-		return fabsf(y-p[1]);
+		const float y = a.Y() + v0.Y()*u + v1.Y()*v;
+		return fabsf(y-p.Y());
 	}
 	return FLT_MAX;
 }
 
-static float distancePtSeg(const float* pt, const float* p, const float* q)
+static float distancePtSeg(const dtCoordinates& pt, const dtCoordinates& p, const dtCoordinates& q)
 {
-	float pqx = q[0] - p[0];
-	float pqy = q[1] - p[1];
-	float pqz = q[2] - p[2];
-	float dx = pt[0] - p[0];
-	float dy = pt[1] - p[1];
-	float dz = pt[2] - p[2];
+	float pqx = q.X() - p.X();
+	float pqy = q.Y() - p.Y();
+	float pqz = q.Z() - p.Z();
+	float dx = pt.X() - p.X();
+	float dy = pt.Y() - p.Y();
+	float dz = pt.Z() - p.Z();
 	float d = pqx*pqx + pqy*pqy + pqz*pqz;
 	float t = pqx*dx + pqy*dy + pqz*dz;
 	if (d > 0)
@@ -132,19 +132,19 @@ static float distancePtSeg(const float* pt, const float* p, const float* q)
 	else if (t > 1)
 		t = 1;
 	
-	dx = p[0] + t*pqx - pt[0];
-	dy = p[1] + t*pqy - pt[1];
-	dz = p[2] + t*pqz - pt[2];
+	dx = p.X() + t*pqx - pt.X();
+	dy = p.Y() + t*pqy - pt.Y();
+	dz = p.Z() + t*pqz - pt.Z();
 	
 	return dx*dx + dy*dy + dz*dz;
 }
 
-static float distancePtSeg2d(const float* pt, const float* p, const float* q)
+static float distancePtSeg2d(const dtCoordinates& pt, const dtCoordinates& p, const dtCoordinates& q)
 {
-	float pqx = q[0] - p[0];
-	float pqz = q[2] - p[2];
-	float dx = pt[0] - p[0];
-	float dz = pt[2] - p[2];
+	float pqx = q.X() - p.X();
+	float pqz = q.Z() - p.Z();
+	float dx = pt.X() - p.X();
+	float dz = pt.Z() - p.Z();
 	float d = pqx*pqx + pqz*pqz;
 	float t = pqx*dx + pqz*dz;
 	if (d > 0)
@@ -154,20 +154,20 @@ static float distancePtSeg2d(const float* pt, const float* p, const float* q)
 	else if (t > 1)
 		t = 1;
 	
-	dx = p[0] + t*pqx - pt[0];
-	dz = p[2] + t*pqz - pt[2];
+	dx = p.X() + t*pqx - pt.X();
+	dz = p.Z() + t*pqz - pt.Z();
 	
 	return dx*dx + dz*dz;
 }
 
-static float distToTriMesh(const float* p, const float* verts, const int /*nverts*/, const int* tris, const int ntris)
+static float distToTriMesh(const dtCoordinates& p, const dtCoordinates* verts, const int /*nverts*/, const int* tris, const int ntris)
 {
 	float dmin = FLT_MAX;
 	for (int i = 0; i < ntris; ++i)
 	{
-		const float* va = &verts[tris[i*4+0]*3];
-		const float* vb = &verts[tris[i*4+1]*3];
-		const float* vc = &verts[tris[i*4+2]*3];
+		const dtCoordinates va( verts[tris[i*4+0]] );
+		const dtCoordinates vb( verts[tris[i*4+1]] );
+		const dtCoordinates vc( verts[tris[i*4+2]] );
 		float d = distPtTri(p, va,vb,vc);
 		if (d < dmin)
 			dmin = d;
@@ -176,17 +176,17 @@ static float distToTriMesh(const float* p, const float* verts, const int /*nvert
 	return dmin;
 }
 
-static float distToPoly(int nvert, const float* verts, const float* p)
+static float distToPoly(int nvert, const dtCoordinates* verts, const dtCoordinates& p)
 {
 
 	float dmin = FLT_MAX;
 	int i, j, c = 0;
 	for (i = 0, j = nvert-1; i < nvert; j = i++)
 	{
-		const float* vi = &verts[i*3];
-		const float* vj = &verts[j*3];
-		if (((vi[2] > p[2]) != (vj[2] > p[2])) &&
-			(p[0] < (vj[0]-vi[0]) * (p[2]-vi[2]) / (vj[2]-vi[2]) + vi[0]) )
+		const dtCoordinates vi( verts[i] );
+		const dtCoordinates vj( verts[j] );
+		if (((vi.Z() > p.Z()) != (vj.Z() > p.Z())) &&
+			(p.X() < (vj.X()-vi.X()) * (p.Z()-vi.Z()) / (vj.Z()-vi.Z()) + vi.X()) )
 			c = !c;
 		dmin = rcMin(dmin, distancePtSeg2d(p, vj, vi));
 	}
@@ -295,7 +295,7 @@ static void updateLeftFace(int* e, int s, int t, int f)
 		e[3] = f;
 }	
 
-static int overlapSegSeg2d(const float* a, const float* b, const float* c, const float* d)
+static int overlapSegSeg2d(const dtCoordinates& a, const dtCoordinates& b, const dtCoordinates& c, const dtCoordinates& d)
 {
 	const float a1 = vcross2(a, b, d);
 	const float a2 = vcross2(a, b, c);
@@ -309,7 +309,7 @@ static int overlapSegSeg2d(const float* a, const float* b, const float* c, const
 	return 0;
 }
 
-static bool overlapEdges(const float* pts, const int* edges, int nedges, int s1, int t1)
+static bool overlapEdges(const dtCoordinates* pts, const int* edges, int nedges, int s1, int t1)
 {
 	for (int i = 0; i < nedges; ++i)
 	{
@@ -318,13 +318,13 @@ static bool overlapEdges(const float* pts, const int* edges, int nedges, int s1,
 		// Same or connected edges do not overlap.
 		if (s0 == s1 || s0 == t1 || t0 == s1 || t0 == t1)
 			continue;
-		if (overlapSegSeg2d(&pts[s0*3],&pts[t0*3], &pts[s1*3],&pts[t1*3]))
+		if (overlapSegSeg2d(pts[s0],pts[t0], pts[s1],pts[t1]))
 			return true;
 	}
 	return false;
 }
 
-static void completeFacet(rcContext* ctx, const float* pts, int npts, int* edges, int& nedges, const int maxEdges, int& nfaces, int e)
+static void completeFacet(rcContext* ctx, const dtCoordinates* pts, int npts, int* edges, int& nedges, const int maxEdges, int& nfaces, int e)
 {
 	static const float EPS = 1e-5f;
 
@@ -350,21 +350,21 @@ static void completeFacet(rcContext* ctx, const float* pts, int npts, int* edges
     
 	// Find best point on left of edge. 
 	int pt = npts;
-	float c[3] = {0,0,0};
+	dtCoordinates c;
 	float r = -1;
 	for (int u = 0; u < npts; ++u)
 	{
 		if (u == s || u == t) continue;
-		if (vcross2(&pts[s*3], &pts[t*3], &pts[u*3]) > EPS)
+		if (vcross2(pts[s], pts[t], pts[u]) > EPS)
 		{
 			if (r < 0)
 			{
 				// The circle is not updated yet, do it now.
 				pt = u;
-				circumCircle(&pts[s*3], &pts[t*3], &pts[u*3], c, r);
+				circumCircle(pts[s], pts[t], pts[u], c, r);
 				continue;
 			}
-			const float d = vdist2(c, &pts[u*3]);
+			const float d = vdist2(c, pts[u]);
 			const float tol = 0.001f;
 			if (d > r*(1+tol))
 			{
@@ -375,7 +375,7 @@ static void completeFacet(rcContext* ctx, const float* pts, int npts, int* edges
 			{
 				// Inside safe circumcircle, update circle.
 				pt = u;
-				circumCircle(&pts[s*3], &pts[t*3], &pts[u*3], c, r);
+				circumCircle(pts[s], pts[t], pts[u], c, r);
 			}
 			else
 			{
@@ -387,7 +387,7 @@ static void completeFacet(rcContext* ctx, const float* pts, int npts, int* edges
 					continue;
 				// Edge is valid.
 				pt = u;
-				circumCircle(&pts[s*3], &pts[t*3], &pts[u*3], c, r);
+				circumCircle(pts[s], pts[t], pts[u], c, r);
 			}
 		}
 	}
@@ -420,7 +420,7 @@ static void completeFacet(rcContext* ctx, const float* pts, int npts, int* edges
 	}
 }
 
-static void delaunayHull(rcContext* ctx, const int npts, const float* pts,
+static void delaunayHull(rcContext* ctx, const int npts, const dtCoordinates* pts,
 						 const int nhull, const int* hull,
 						 rcIntArray& tris, rcIntArray& edges)
 {
@@ -507,27 +507,27 @@ inline float getJitterY(const int i)
 	return (((i * 0xd8163841) & 0xffff) / 65535.0f * 2.0f) - 1.0f;
 }
 
-static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
+static bool buildPolyDetail(rcContext* ctx, const dtCoordinates* in, const int nin,
 							const float sampleDist, const float sampleMaxError,
 							const rcCompactHeightfield& chf, const rcHeightPatch& hp,
-							float* verts, int& nverts, rcIntArray& tris,
+							dtCoordinates* verts, int& nverts, rcIntArray& tris,
 							rcIntArray& edges, rcIntArray& samples
 #ifdef MODIFY_VOXEL_FLAG
-							, const char area
+							, const char /*area*/
 #endif // MODIFY_VOXEL_FLAG
 							)
 {
 	static const int MAX_VERTS = 127;
 	static const int MAX_TRIS = 255;	// Max tris for delaunay is 2n-2-k (n=num verts, k=num hull verts).
 	static const int MAX_VERTS_PER_EDGE = 32;
-	float edge[(MAX_VERTS_PER_EDGE+1)*3];
+	dtCoordinates edge[(MAX_VERTS_PER_EDGE+1)];
 	int hull[MAX_VERTS];
 	int nhull = 0;
 
 	nverts = 0;
 
 	for (int i = 0; i < nin; ++i)
-		rcVcopy(&verts[i*3], &in[i*3]);
+		rcVcopy(verts[i], in[i]);
 	nverts = nin;
 	
 	const float cs = chf.cs;
@@ -544,14 +544,14 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 	{
 		for (int i = 0, j = nin-1; i < nin; j=i++)
 		{
-			const float* vj = &in[j*3];
-			const float* vi = &in[i*3];
+			const dtCoordinates* vj = &in[j];
+			const dtCoordinates* vi = &in[i];
 			bool swapped = false;
 			// Make sure the segments are always handled in same order
 			// using lexological sort or else there will be seams.
-			if (fabsf(vj[0]-vi[0]) < 1e-6f)
+			if (fabsf(vj->X()-vi->X()) < 1e-6f)
 			{
-				if (vj[2] > vi[2])
+				if (vj->Z() > vi->Z())
 				{
 					rcSwap(vj,vi);
 					swapped = true;
@@ -559,16 +559,16 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 			}
 			else
 			{
-				if (vj[0] > vi[0])
+				if (vj->X() > vi->X())
 				{
 					rcSwap(vj,vi);
 					swapped = true;
 				}
 			}
 			// Create samples along the edge.
-			float dx = vi[0] - vj[0];
-			float dy = vi[1] - vj[1];
-			float dz = vi[2] - vj[2];
+			float dx = vi->X() - vj->X();
+			float dy = vi->Y() - vj->Y();
+			float dz = vi->Z() - vj->Z();
 			float d = sqrtf(dx*dx + dz*dz);
 			int nn = 1 + (int)floorf(d/sampleDist);
 			if (nn >= MAX_VERTS_PER_EDGE) nn = MAX_VERTS_PER_EDGE-1;
@@ -578,11 +578,11 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 			for (int k = 0; k <= nn; ++k)
 			{
 				float u = (float)k/(float)nn;
-				float* pos = &edge[k*3];
-				pos[0] = vj[0] + dx*u;
-				pos[1] = vj[1] + dy*u;
-				pos[2] = vj[2] + dz*u;
-				pos[1] = getHeight(pos[0],pos[1],pos[2], cs, ics, chf.ch, hp)*chf.ch;
+				dtCoordinates* pos = &edge[k];
+				pos->SetX( vj->X() + dx*u );
+				pos->SetY( vj->Y() + dy*u );
+				pos->SetZ( vj->Z() + dz*u );
+				pos->SetY( getHeight(pos->X(),pos->Y(),pos->Z(), cs, ics, chf.ch, hp)*chf.ch );
 			}
 			// Simplify samples.
 			int idx[MAX_VERTS_PER_EDGE] = {0,nn};
@@ -591,14 +591,14 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 			{
 				const int a = idx[k];
 				const int b = idx[k+1];
-				const float* va = &edge[a*3];
-				const float* vb = &edge[b*3];
+				const dtCoordinates va( edge[a] );
+				const dtCoordinates vb( edge[b] );
 				// Find maximum deviation along the segment.
 				float maxd = 0;
 				int maxi = -1;
 				for (int m = a+1; m < b; ++m)
 				{
-					float dev = distancePtSeg(&edge[m*3],va,vb);
+					float dev = distancePtSeg(edge[m],va,vb);
 					if (dev > maxd)
 					{
 						maxd = dev;
@@ -626,7 +626,7 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 			{
 				for (int k = nidx-2; k > 0; --k)
 				{
-					rcVcopy(&verts[nverts*3], &edge[idx[k]*3]);
+					rcVcopy(verts[nverts], edge[idx[k]]);
 					hull[nhull++] = nverts;
 					nverts++;
 				}
@@ -635,7 +635,7 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 			{
 				for (int k = 1; k < nidx-1; ++k)
 				{
-					rcVcopy(&verts[nverts*3], &edge[idx[k]*3]);
+					rcVcopy(verts[nverts], edge[idx[k]]);
 					hull[nhull++] = nverts;
 					nverts++;
 				}
@@ -671,31 +671,28 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 #endif // MODIFY_VOXEL_FLAG
 	{
 		// Create sample locations in a grid.
-		float bmin[3], bmax[3];
-		rcVcopy(bmin, in);
-		rcVcopy(bmax, in);
+		dtCoordinates bmin, bmax;
+		rcVcopy(bmin, in[0]);
+		rcVcopy(bmax, in[0]);
 		for (int i = 1; i < nin; ++i)
 		{
-			rcVmin(bmin, &in[i*3]);
-			rcVmax(bmax, &in[i*3]);
+			rcVmin(bmin, in[i]);
+			rcVmax(bmax, in[i]);
 		}
-		int x0 = (int)floorf(bmin[0]/sampleDist);
-		int x1 = (int)ceilf(bmax[0]/sampleDist);
-		int z0 = (int)floorf(bmin[2]/sampleDist);
-		int z1 = (int)ceilf(bmax[2]/sampleDist);
+		int x0 = (int)floorf(bmin.X()/sampleDist);
+		int x1 = (int)ceilf(bmax.X()/sampleDist);
+		int z0 = (int)floorf(bmin.Z()/sampleDist);
+		int z1 = (int)ceilf(bmax.Z()/sampleDist);
 		samples.resize(0);
 		for (int z = z0; z < z1; ++z)
 		{
 			for (int x = x0; x < x1; ++x)
 			{
-				float pt[3];
-				pt[0] = x*sampleDist;
-				pt[1] = (bmax[1]+bmin[1])*0.5f;
-				pt[2] = z*sampleDist;
+				const dtCoordinates pt( x*sampleDist, (bmax.Y()+bmin.Y())*0.5f, z*sampleDist );
 				// Make sure the samples are not too close to the edges.
 				if (distToPoly(nin,in,pt) > -sampleDist/2) continue;
 				samples.push(x);
-				samples.push(getHeight(pt[0], pt[1], pt[2], cs, ics, chf.ch, hp));
+				samples.push(getHeight(pt.X(), pt.Y(), pt.Z(), cs, ics, chf.ch, hp));
 				samples.push(z);
 				samples.push(0); // Not added
 			}
@@ -711,19 +708,16 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 				break;
 
 			// Find sample with most error.
-			float bestpt[3] = {0,0,0};
+			dtCoordinates bestpt;
 			float bestd = 0;
 			int besti = -1;
 			for (int i = 0; i < nsamples; ++i)
 			{
 				const int* s = &samples[i*4];
 				if (s[3]) continue; // skip added.
-				float pt[3];
+				const dtCoordinates pt( s[0]*sampleDist + getJitterX(i)*cs*0.1f, s[1]*chf.ch, s[2]*sampleDist + getJitterY(i)*cs*0.1f );
 				// The sample location is jittered to get rid of some bad triangulations
 				// which are cause by symmetrical data from the grid structure.
-				pt[0] = s[0]*sampleDist + getJitterX(i)*cs*0.1f;
-				pt[1] = s[1]*chf.ch;
-				pt[2] = s[2]*sampleDist + getJitterY(i)*cs*0.1f;
 				float d = distToTriMesh(pt, verts, nverts, &tris[0], tris.size()/4);
 				if (d < 0) continue; // did not hit the mesh.
 				if (d > bestd)
@@ -739,7 +733,7 @@ static bool buildPolyDetail(rcContext* ctx, const float* in, const int nin,
 			// Mark sample as added.
 			samples[besti*4+3] = 1;
 			// Add the new sample point.
-			rcVcopy(&verts[nverts*3],bestpt);
+			rcVcopy(verts[nverts],bestpt);
 			nverts++;
 			
 			// Create new triangulation.
@@ -1028,22 +1022,22 @@ static void getHeightData(const rcCompactHeightfield& chf,
 	}
 }
 
-static unsigned char getEdgeFlags(const float* va, const float* vb,
-								  const float* vpoly, const int npoly)
+static unsigned char getEdgeFlags(const dtCoordinates& va, const dtCoordinates& vb,
+								  const dtCoordinates* vpoly, const int npoly)
 {
 	// Return true if edge (va,vb) is part of the polygon.
 	static const float thrSqr = rcSqr(0.001f);
 	for (int i = 0, j = npoly-1; i < npoly; j=i++)
 	{
-		if (distancePtSeg2d(va, &vpoly[j*3], &vpoly[i*3]) < thrSqr && 
-			distancePtSeg2d(vb, &vpoly[j*3], &vpoly[i*3]) < thrSqr)
+		if (distancePtSeg2d(va, vpoly[j], vpoly[i]) < thrSqr && 
+			distancePtSeg2d(vb, vpoly[j], vpoly[i]) < thrSqr)
 			return 1;
 	}
 	return 0;
 }
 
-static unsigned char getTriFlags(const float* va, const float* vb, const float* vc,
-								 const float* vpoly, const int npoly)
+static unsigned char getTriFlags(const dtCoordinates& va, const dtCoordinates& vb, const dtCoordinates& vc,
+								 const dtCoordinates* vpoly, const int npoly)
 {
 	unsigned char flags = 0;
 	flags |= getEdgeFlags(va,vb,vpoly,npoly) << 0;
@@ -1071,14 +1065,14 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 	const int nvp = mesh.nvp;
 	const float cs = mesh.cs;
 	const float ch = mesh.ch;
-	const float* orig = mesh.bmin;
+	const dtCoordinates orig( mesh.bmin );
 	const int borderSize = mesh.borderSize;
 	
 	rcIntArray edges(64);
 	rcIntArray tris(512);
 	rcIntArray stack(512);
 	rcIntArray samples(512);
-	float verts[256*3];
+	dtCoordinates verts[256];
 	rcHeightPatch hp;
 	int nPolyVerts = 0;
 	int maxhw = 0, maxhh = 0;
@@ -1089,7 +1083,7 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 		ctx->log(RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'bounds' (%d).", mesh.npolys*4);
 		return false;
 	}
-	rcScopedDelete<float> poly = (float*)rcAlloc(sizeof(float)*nvp*3, RC_ALLOC_TEMP);
+	rcScopedDelete<dtCoordinates> poly = (dtCoordinates*)rcAlloc(sizeof(dtCoordinates)*nvp, RC_ALLOC_TEMP);
 	if (!poly)
 	{
 		ctx->log(RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'poly' (%d).", nvp*3);
@@ -1148,7 +1142,7 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 	int tcap = vcap*2;
 
 	dmesh.nverts = 0;
-	dmesh.verts = (float*)rcAlloc(sizeof(float)*vcap*3, RC_ALLOC_PERM);
+	dmesh.verts = (dtCoordinates*)rcAlloc(sizeof(dtCoordinates)*vcap, RC_ALLOC_PERM);
 	if (!dmesh.verts)
 	{
 		ctx->log(RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'dmesh.verts' (%d).", vcap*3);
@@ -1172,9 +1166,9 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 		{
 			if(p[j] == RC_MESH_NULL_IDX) break;
 			const unsigned short* v = &mesh.verts[p[j]*3];
-			poly[j*3+0] = v[0]*cs;
-			poly[j*3+1] = v[1]*ch;
-			poly[j*3+2] = v[2]*cs;
+			poly[j].SetX( v[0]*cs );
+			poly[j].SetY( v[1]*ch );
+			poly[j].SetZ( v[2]*cs );
 			npoly++;
 		}
 		
@@ -1200,16 +1194,16 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 		// Move detail verts to world space.
 		for (int j = 0; j < nverts; ++j)
 		{
-			verts[j*3+0] += orig[0];
-			verts[j*3+1] += orig[1] + chf.ch; // Is this offset necessary?
-			verts[j*3+2] += orig[2];
+			verts[j].SetX( verts[j].X() + orig.X() );
+			verts[j].SetY( verts[j].Y() + orig.Y() + chf.ch ); // Is this offset necessary?
+			verts[j].SetZ( verts[j].Z() + orig.Z() );
 		}
 		// Offset poly too, will be used to flag checking.
 		for (int j = 0; j < npoly; ++j)
 		{
-			poly[j*3+0] += orig[0];
-			poly[j*3+1] += orig[1];
-			poly[j*3+2] += orig[2];
+			poly[j].SetX( poly[j].X() + orig.X() );
+			poly[j].SetY( poly[j].Y() + orig.Y() );
+			poly[j].SetZ( poly[j].Z() + orig.Z() );
 		}
 	
 		// Store detail submesh.
@@ -1226,22 +1220,22 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 			while (dmesh.nverts+nverts > vcap)
 				vcap += 256;
 				
-			float* newv = (float*)rcAlloc(sizeof(float)*vcap*3, RC_ALLOC_PERM);
+			dtCoordinates* newv = (dtCoordinates*)rcAlloc(sizeof(dtCoordinates)*vcap, RC_ALLOC_PERM);
 			if (!newv)
 			{
 				ctx->log(RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'newv' (%d).", vcap*3);
 				return false;
 			}
 			if (dmesh.nverts)
-				memcpy(newv, dmesh.verts, sizeof(float)*3*dmesh.nverts);
+				memcpy(newv, dmesh.verts, sizeof(dtCoordinates)*dmesh.nverts);
 			rcFree(dmesh.verts);
 			dmesh.verts = newv;
 		}
 		for (int j = 0; j < nverts; ++j)
 		{
-			dmesh.verts[dmesh.nverts*3+0] = verts[j*3+0];
-			dmesh.verts[dmesh.nverts*3+1] = verts[j*3+1];
-			dmesh.verts[dmesh.nverts*3+2] = verts[j*3+2];
+			dmesh.verts[dmesh.nverts].SetX( verts[j].X() );
+			dmesh.verts[dmesh.nverts].SetY( verts[j].Y() );
+			dmesh.verts[dmesh.nverts].SetZ( verts[j].Z() );
 			dmesh.nverts++;
 		}
 		
@@ -1267,7 +1261,7 @@ bool rcBuildPolyMeshDetail(rcContext* ctx, const rcPolyMesh& mesh, const rcCompa
 			dmesh.tris[dmesh.ntris*4+0] = (unsigned char)t[0];
 			dmesh.tris[dmesh.ntris*4+1] = (unsigned char)t[1];
 			dmesh.tris[dmesh.ntris*4+2] = (unsigned char)t[2];
-			dmesh.tris[dmesh.ntris*4+3] = getTriFlags(&verts[t[0]*3], &verts[t[1]*3], &verts[t[2]*3], poly, npoly);
+			dmesh.tris[dmesh.ntris*4+3] = getTriFlags(verts[t[0]], verts[t[1]], verts[t[2]], poly, npoly);
 			dmesh.ntris++;
 		}
 	}
@@ -1313,7 +1307,7 @@ bool rcMergePolyMeshDetails(rcContext* ctx, rcPolyMeshDetail** meshes, const int
 	}
 
 	mesh.nverts = 0;
-	mesh.verts = (float*)rcAlloc(sizeof(float)*maxVerts*3, RC_ALLOC_PERM);
+	mesh.verts = (dtCoordinates*)rcAlloc(sizeof(dtCoordinates)*maxVerts, RC_ALLOC_PERM);
 	if (!mesh.verts)
 	{
 		ctx->log(RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'dmesh.verts' (%d).", maxVerts*3);
@@ -1338,7 +1332,7 @@ bool rcMergePolyMeshDetails(rcContext* ctx, rcPolyMeshDetail** meshes, const int
 			
 		for (int k = 0; k < dm->nverts; ++k)
 		{
-			rcVcopy(&mesh.verts[mesh.nverts*3], &dm->verts[k*3]);
+			rcVcopy(mesh.verts[mesh.nverts], dm->verts[k]);
 			mesh.nverts++;
 		}
 		for (int k = 0; k < dm->ntris; ++k)

@@ -20,7 +20,8 @@
 #define MESHLOADER_OBJ
 
 #include <Recast.h>
-#include <vector>
+#include <DetourCoordinates.h>
+
 
 class rcMeshLoaderObj
 {
@@ -30,19 +31,16 @@ public:
 	
 	bool load(const char* fileName);
 
-#ifdef MODIFY_COORDINATES
-#else // MODIFY_COORDINATES
-	inline const float* getVerts() const { return m_verts; }
-#endif // MODIFY_COORDINATES
-	inline const float* getNormals() const { return m_normals; }
+	inline const dtCoordinates* getVerts() const { return m_verts; }
+	inline const dtCoordinates* getNormals() const { return m_normals; }
 	inline const int* getTris() const { return m_tris; }
 	inline int getVertCount() const { return m_vertCount; }
 	inline int getTriCount() const { return m_triCount; }
 	inline const char* getFileName() const { return m_filename; }
 
 #ifdef MODIFY_SQUARE_SECTOR
-	inline const float* getSquareMin() const { return m_square_min; }
-	inline const float* getSquareMax() const { return m_square_max; }
+	inline const dtCoordinates& getSquareMin() const { return m_square_min; }
+	inline const dtCoordinates& getSquareMax() const { return m_square_max; }
 #endif // MODIFY_SQUARE_SECTOR
 #ifdef INTEGRATION_BUILD
 	inline void			setIntegrationBuild( const bool integrationBuild )	{	m_integrationBuild = integrationBuild;	}
@@ -58,12 +56,9 @@ private:
 	
 	char m_filename[260];
 	float m_scale;	
-#ifdef MODIFY_COORDINATES
-#else // MODIFY_COORDINATES
-	float* m_verts;
-#endif // MODIFY_COORDINATES
+	dtCoordinates* m_verts;
 	int* m_tris;
-	float* m_normals;
+	dtCoordinates* m_normals;
 	int m_vertCount;
 	int m_triCount;
 
@@ -75,8 +70,8 @@ private:
 	int m_countVariableHeight;
 #endif // VARIABLE_TILE_SIZE
 #ifdef MODIFY_SQUARE_SECTOR
-	float m_square_min[3];
-	float m_square_max[3];
+	dtCoordinates m_square_min;
+	dtCoordinates m_square_max;
 #endif // MODIFY_SQUARE_SECTOR
 	int m_terrain_count;
 };

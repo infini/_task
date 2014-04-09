@@ -32,7 +32,7 @@ static const dtNodeIndex DT_NULL_IDX = (dtNodeIndex)~0;
 
 struct dtNode
 {
-	float pos[3];				///< Position of the node.
+	dtCoordinates pos;			///< Position of the node.
 	float cost;					///< Cost from previous node to current node.
 	float total;				///< Cost up to the node.
 	unsigned int pidx : 30;		///< Index to parent node.

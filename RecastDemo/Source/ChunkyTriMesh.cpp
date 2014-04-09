@@ -17,6 +17,7 @@
 //
 
 #include "ChunkyTriMesh.h"
+#include <DetourCoordinates.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -139,7 +140,7 @@ static void subdivide(BoundsItem* items, int nitems, int imin, int imax, int tri
 	}
 }
 
-bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
+bool rcCreateChunkyTriMesh(const dtCoordinates* verts, const int* tris, int ntris,
 						   int trisPerChunk, rcChunkyTriMesh* cm)
 {
 	int nchunks = (ntris + trisPerChunk-1) / trisPerChunk;
@@ -165,16 +166,16 @@ bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
 		BoundsItem& it = items[i];
 		it.i = i;
 		// Calc triangle XZ bounds.
-		it.bmin[0] = it.bmax[0] = verts[t[0]*3+0];
-		it.bmin[1] = it.bmax[1] = verts[t[0]*3+2];
+		it.bmin[0] = it.bmax[0] = verts[t[0]].X();
+		it.bmin[1] = it.bmax[1] = verts[t[0]].Z();
 		for (int j = 1; j < 3; ++j)
 		{
-			const float* v = &verts[t[j]*3];
-			if (v[0] < it.bmin[0]) it.bmin[0] = v[0]; 
-			if (v[2] < it.bmin[1]) it.bmin[1] = v[2]; 
+			const dtCoordinates v( verts[t[j]] );
+			if (v.X() < it.bmin[0]) it.bmin[0] = v.X();
+			if (v.Z() < it.bmin[1]) it.bmin[1] = v.Z();
 
-			if (v[0] > it.bmax[0]) it.bmax[0] = v[0]; 
-			if (v[2] > it.bmax[1]) it.bmax[1] = v[2]; 
+			if (v.X() > it.bmax[0]) it.bmax[0] = v.X();
+			if (v.Z() > it.bmax[1]) it.bmax[1] = v.Z();
 		}
 	}
 
