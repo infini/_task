@@ -3721,14 +3721,15 @@ dtStatus	dtNavMeshQuery::findMovablePosition( const dtPolyRef startPolyID, const
 			dtVcopy( verts[i], tile->verts[poly->verts[i]] );
 		}
 
-		if( dtPointInPolygon( interpolationEndPos, verts, vertCount ) ) {
+		if( dtPointInPolygon( endPos, verts, vertCount ) ) {
 			resultPolyID = currentPolyID;
-			dtVcopy( resultPosition, interpolationEndPos );
+			dtVcopy( resultPosition, endPos );
 			return DT_SUCCESS;
 		}
 
-		int segMin = -1, segMax = -1;
-		if( !_dtIntersectSegmentPoly2D( startPos, interpolationEndPos, verts, vertCount, segMin, segMax, resultPosition ) ) {
+		float tmin, tmax;
+		int segMin, segMax;
+		if( !_dtIntersectSegmentPoly2D( startPos, endPos, verts, vertCount, tmin, tmax, segMin, segMax, resultPosition ) ) {
 			return resultPolyID != 0 ? DT_SUCCESS | DT_COLLISION : DT_FAILURE;
 		}
 
@@ -3741,11 +3742,57 @@ dtStatus	dtNavMeshQuery::findMovablePosition( const dtPolyRef startPolyID, const
 		dtPolyRef nextPolyID( 0 );
 		for( unsigned int i = poly->firstLink; i != DT_NULL_LINK; i = tile->links[i].next ) {
 			const dtLink* link = &tile->links[i];
+			if( static_cast<int>( link->edge ) != segMax ) {
+				continue;
+			}
 
-			if( static_cast<int>(link->edge) == segMax ) {
+			//////////////////////////////////////////////////////////////////////////
+			const dtMeshTile* nextTile = 0;
+			const dtPoly* nextPoly = 0;
+			m_nav->getTileAndPolyByRefUnsafe(link->ref, &nextTile, &nextPoly);
+
+			if( link->side == 0xff ) {
 				nextPolyID = link->ref;
 				break;
 			}
+
+			if( link->bmin == 0 && link->bmax == 0xff ) {
+				nextPolyID = link->ref;
+				break;
+			}
+
+			const int v0 = poly->verts[link->edge];
+			const int v1 = poly->verts[(link->edge+1) % poly->vertCount];
+			const dtCoordinates left( tile->verts[v0] );
+			const dtCoordinates right( tile->verts[v1] );
+
+			if( link->side == 0 || link->side == 4 ) {
+				const float s = 1.0f/255.0f;
+				float lmin = left.Z() + (right.Z() - left.Z())*(link->bmin*s);
+				float lmax = left.Z() + (right.Z() - left.Z())*(link->bmax*s);
+				if( lmax < lmin )
+					dtSwap( lmin, lmax );
+
+				float z = startPos.Z() + (endPos.Z()-startPos.Z())*tmax;
+				if( z >= lmin && z <= lmax ) {
+				nextPolyID = link->ref;
+				break;
+			}
+		}
+			else if( link->side == 2 || link->side == 6 ) {
+				const float s = 1.0f/255.0f;
+				float lmin = left.X() + (right.X() - left.X())*(link->bmin*s);
+				float lmax = left.X() + (right.X() - left.X())*(link->bmax*s);
+				if( lmax < lmin )
+					dtSwap( lmin, lmax );
+
+				float x = startPos.X() + (endPos.X()-startPos.X())*tmax;
+				if( lmin <= x && x <= lmax ) {
+					nextPolyID = link->ref;
+					break;
+				}
+			}
+			//////////////////////////////////////////////////////////////////////////
 		}
 
 		if( nextPolyID == 0 && dtIsJumpableMeshType( poly->getType() ) ) {
@@ -3762,10 +3809,10 @@ dtStatus	dtNavMeshQuery::findMovablePosition( const dtPolyRef startPolyID, const
 					dtVcopy( next_verts[i], next_tile->verts[next_poly->verts[i]] );
 				}
 
-				if( dtPointInPolygon( interpolationEndPos, next_verts, next_vertCount ) ) {
+				if( dtPointInPolygon( endPos, next_verts, next_vertCount ) ) {
 					float height = 0;
-					getCorrectPolyHeight( jumpMeshLink->ref, interpolationEndPos, height );
-					if( height <= interpolationEndPos.Y() ) {
+					getCorrectPolyHeight( jumpMeshLink->ref, endPos, height );
+					if( height <= endPos.Y() ) {
 						nextPolyID = jumpMeshLink->ref;
 						break;
 					}

@@ -60,7 +60,7 @@ typedef unsigned int dtTileRef;
 
 /// The maximum number of vertices per navigation polygon.
 /// @ingroup detour
-static const int DT_VERTS_PER_POLYGON = 3;
+static const int DT_VERTS_PER_POLYGON = 6;
 
 /// @{
 /// @name Tile Serialization Constants

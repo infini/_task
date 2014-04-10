@@ -51,6 +51,7 @@
 				EnableFunctionLevelLinking="true"
 				FloatingPointModel="2"
 				RuntimeTypeInfo="false"
+				OpenMP="true"
 				UsePrecompiledHeader="0"
 				ProgramDataBaseFileName="$(OutDir)\RecastDemo.pdb"
 				WarningLevel="4"
@@ -105,7 +106,7 @@
 			OutputDirectory="..\..\Bin"
 			IntermediateDirectory="obj\Release\RecastDemo"
 			ConfigurationType="1"
-			InheritedPropertySheets="C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Language.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Config_Release.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Target_StaticLinkedExecutable.vsprops"
+			InheritedPropertySheets="C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Language.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Target_StaticLinkedExecutable.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Config_Shipping.vsprops"
 			CharacterSet="2"
 			>
 			<Tool
@@ -134,6 +135,7 @@
 				EnableFunctionLevelLinking="true"
 				FloatingPointModel="2"
 				RuntimeTypeInfo="false"
+				OpenMP="true"
 				UsePrecompiledHeader="0"
 				ProgramDataBaseFileName="$(OutDir)\RecastDemo.pdb"
 				WarningLevel="4"

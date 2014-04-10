@@ -96,10 +96,9 @@ void rcMeshLoaderObj::addVertex(float x, float y, float z, int& cap)
 		m_verts = nv;
 	}
 	
-	dtCoordinates* dst = &m_verts[m_vertCount];
-	dst->SetX( x*m_scale );
-	dst->SetY( y*m_scale );
-	dst->SetZ( z*m_scale );
+	m_verts[m_vertCount].SetX( x*m_scale );
+	m_verts[m_vertCount].SetY( y*m_scale );
+	m_verts[m_vertCount].SetZ( z*m_scale );
 	m_vertCount++;
 }
 

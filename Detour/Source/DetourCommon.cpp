@@ -239,17 +239,33 @@ bool dtPointInPolygon(const dtCoordinates& pt, const dtCoordinates* verts, const
 {
 	// TODO: Replace pnpoly with triArea2D tests?
 	int i, j;
-	bool c = false;
+	bool in = false;
+	bool edge = false;
 	for (i = 0, j = nverts-1; i < nverts; j = i++)
 	{
 		const dtCoordinates vi( verts[i] );
 		const dtCoordinates vj( verts[j] );
-		const float t = (vj.X()-vi.X()) * (pt.Z()-vi.Z()) / (vj.Z()-vi.Z()) + vi.X();
-		if( ((vi.Z() > pt.Z()) != (vj.Z() > pt.Z())) && (pt.X() < t) ) {
-			c = !c;
+		if( ( vi.X() == pt.X() && vi.Z() == pt.Z() ) || ( vj.X() == pt.X() && vj.Z() == pt.Z() ) ) {
+			return true;
+		}
+
+		const float t0 = (vj.X()-vi.X()) * (pt.Z()-vi.Z());
+		const float t1 = (vj.Z()-vi.Z());
+		const float t = (t0 != 0.f && t1 != 0.f ) ? (t0 / t1 + vi.X()) : vi.X();
+
+		if( ( (pt.Z() < vi.Z()) != (pt.Z() < vj.Z()) ) && (pt.X() < t) ) {
+			in = !in;
+		}
+		else {
+			if( (pt.X() == t) && ( (pt.Z() < vi.Z()) != (pt.Z() < vj.Z()) ) ) {
+				edge = !edge;
+			}
+			else if( ( (pt.Z() == vi.Z()) && (pt.Z() == vj.Z()) ) && (pt.X() < t) ) {
+				edge = !edge;
+			}
 		}
 	}
-	return c;
+	return in || edge;
 }
 
 bool dtDistancePtPolyEdgesSqr(const dtCoordinates& pt, const dtCoordinates* verts, const int nverts,
@@ -409,14 +425,15 @@ float	dtCorrectHeightPointTriangle( const dtCoordinates& pos, const dtCoordinate
 }
 
 //////////////////////////////////////////////////////////////////////////
-bool	_dtIntersectSegmentPoly2D( const dtCoordinates& p0, const dtCoordinates& p1, const dtCoordinates* verts, const int nverts, int& segMin, int& segMax, dtCoordinates& resultPosition )
+bool	_dtIntersectSegmentPoly2D( const dtCoordinates& p0, const dtCoordinates& p1, const dtCoordinates* verts, const int nverts, float& tmin, float& tmax, int& segMin, int& segMax, dtCoordinates& resultPosition )
 {
 	static const float EPS = 0.00000001f;
+	static const float gap = 0.00001f;
 
+	tmin = 0;
+	tmax = 1;
 	segMin = -1;
 	segMax = -1;
-	float tmin = 0;
-	float tmax = 1;
 	dtCoordinates dir;
 	dtVsub( dir, p1, p0 );
 
@@ -440,25 +457,36 @@ bool	_dtIntersectSegmentPoly2D( const dtCoordinates& p0, const dtCoordinates& p1
 		const float t = n / d;
 		if( d < 0 ) {
 			if( tmin < t ) {
+				if( t < gap ) {
+					continue;
+				}
+				if( tmax < tmin ) {
+					//return false;
+					continue;
+				}
 				tmin = t;
 				segMin = j;
-				if( tmax < tmin ) {
-					return false;
-				}
 			}
 		}
 		else {
 			if( t < tmax ) {
+				if( t < gap ) {
+					continue;
+				}
+				if( tmax < tmin ) {
+					//return false;
+					continue;
+				}
 				tmax = t;
 				segMax = j;
-				if( tmax < tmin ) {
-					return false;
-				}
 				//////////////////////////////////////////////////////////////////////////
 				// intersect point
-				const float t1 = ((p0.Z() - v0.Z()) * (v1.X() - v0.X())) - ((p0.X() - v0.X()) * (v1.Z() - v0.Z()));
-				const float t2 = ((p1.X() - p0.X()) * (v1.Z() - v0.Z())) - ((p1.Z() - p0.Z()) * (v1.X() - v0.X()));
-				float t0 = t1 / t2;
+// 				const float t1 = ((p0.Z() - v0.Z()) * (v1.X() - v0.X())) - ((p0.X() - v0.X()) * (v1.Z() - v0.Z()));
+// 				const float t2 = ((p1.X() - p0.X()) * (v1.Z() - v0.Z())) - ((p1.Z() - p0.Z()) * (v1.X() - v0.X()));
+// 				float t0 = t1 / t2;
+// 				t0 = 0.002f < t0 ? t0 - 0.002f : 0.0f;
+
+				float t0 ( tmax );
 				t0 = 0.002f < t0 ? t0 - 0.002f : 0.0f;
 				dtVlerp( resultPosition, p0, p1, t0 );
 				//////////////////////////////////////////////////////////////////////////
@@ -466,7 +494,8 @@ bool	_dtIntersectSegmentPoly2D( const dtCoordinates& p0, const dtCoordinates& p1
 		}
 	}
 
-	return true;
+	//return true;
+	return segMin != -1 || segMax != -1;
 
 // 	segMin = -1;
 // 	segMax = -1;

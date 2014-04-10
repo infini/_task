@@ -92,7 +92,7 @@
 			OutputDirectory="lib\Release"
 			IntermediateDirectory="obj\Release\DebugUtils"
 			ConfigurationType="4"
-			InheritedPropertySheets="C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Language.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Config_Release.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Target_StaticLinkedExecutable.vsprops"
+			InheritedPropertySheets="C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Language.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Target_StaticLinkedExecutable.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Config_Shipping.vsprops"
 			CharacterSet="2"
 			>
 			<Tool

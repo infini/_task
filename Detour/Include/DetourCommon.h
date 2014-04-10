@@ -520,7 +520,7 @@ inline bool dtCompleteOverlapBounds2D(const dtCoordinates& amin, const dtCoordin
 
 float	dtCorrectHeightPointTriangle( const dtCoordinates& pos, const dtCoordinates* triangle );
 
-bool	_dtIntersectSegmentPoly2D( const dtCoordinates& p0, const dtCoordinates& p1, const dtCoordinates* verts, const int nverts, int& segMin, int& segMax, dtCoordinates& resultPosition );
+bool	_dtIntersectSegmentPoly2D( const dtCoordinates& p0, const dtCoordinates& p1, const dtCoordinates* verts, const int nverts, float& tmin, float& tmax, int& segMin, int& segMax, dtCoordinates& resultPosition );
 // MIRCHANG
 //////////////////////////////////////////////////////////////////////////
 

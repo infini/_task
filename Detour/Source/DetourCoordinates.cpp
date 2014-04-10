@@ -67,26 +67,35 @@ dtCoordinates&	dtCoordinates::operator = ( const float* rhs )
 	return *this;
 }
 
-void	dtCoordinates::getCoordinates( OUT efd::Point3& position ) const
+dtCoordinates	dtCoordinates::operator +( const dtCoordinates& rhs ) const
 {
-	position.x = m_Z;
-	position.y = m_X;
-	position.z = m_Y;
+	return dtCoordinates( this->X() + rhs.X(), this->Y() + rhs.Y(), this->Z() + rhs.Z() );
 }
 
-void	dtCoordinates::getCoordinates( OUT float* position ) const
+dtCoordinates	dtCoordinates::operator -( const dtCoordinates& rhs ) const
 {
-	position[0] = m_X;
-	position[1] = m_Y;
-	position[2] = m_Z;
+	return dtCoordinates( this->X() - rhs.X(), this->Y() - rhs.Y(), this->Z() - rhs.Z() );
+}
+
+dtCoordinates	dtCoordinates::operator *( const dtCoordinates& rhs ) const
+{
+	return dtCoordinates( this->X() * rhs.X(), this->Y() * rhs.Y(), this->Z() * rhs.Z() );
+}
+
+dtCoordinates	dtCoordinates::operator /( const dtCoordinates& rhs ) const
+{
+	return dtCoordinates( this->X() / rhs.X(), this->Y() / rhs.Y(), this->Z() / rhs.Z() );
 }
 
 namespace TransformCoordinates
 {
 	void	transform( const dtCoordinates& src, float* dest )
 	{
-		dest[0] = src.X();
-		dest[1] = src.Y();
-		dest[2] = src.Z();
+		dest[0] = src.X();	dest[1] = src.Y();	dest[2] = src.Z();
+	}
+
+	void	transform( const dtCoordinates& src, efd::Point3& dest )
+	{
+		dest.x = src.Z();	dest.y = src.X();	dest.z = src.Y();
 	}
 }
