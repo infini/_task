@@ -46,6 +46,12 @@ static const int DT_CROWDAGENT_MAX_CORNERS = 4;
 ///		 dtCrowdAgentParams::obstacleAvoidanceType
 static const int DT_CROWD_MAX_OBSTAVOIDANCE_PARAMS = 8;
 
+/// The maximum number of query filter types supported by the crowd manager.
+/// @ingroup crowd
+/// @see dtQueryFilter, dtCrowd::getFilter() dtCrowd::getEditableFilter(),
+///		dtCrowdAgentParams::queryFilterType
+static const int DT_CROWD_MAX_QUERY_FILTER_TYPE = 16;
+
 /// Provides neighbor data for agents managed by the crowd.
 /// @ingroup crowd
 /// @see dtCrowdAgent::neis, dtCrowd
@@ -87,6 +93,9 @@ struct dtCrowdAgentParams
 	/// The index of the avoidance configuration to use for the agent. 
 	/// [Limits: 0 <= value <= #DT_CROWD_MAX_OBSTAVOIDANCE_PARAMS]
 	unsigned char obstacleAvoidanceType;	
+
+	/// The index of the query filter used by this agent.
+	unsigned char queryFilterType;
 
 	/// User defined data attached to the agent.
 	void* userData;
@@ -207,7 +216,8 @@ class dtCrowd
 	int m_maxPathResult;
 	
 	dtCoordinates m_ext;
-	dtQueryFilter m_filter;
+
+	dtQueryFilter m_filters[DT_CROWD_MAX_QUERY_FILTER_TYPE];
 	
 	float m_maxAgentRadius;
 
@@ -251,6 +261,11 @@ public:
 	///	 @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	/// @return The requested agent.
 	const dtCrowdAgent* getAgent(const int idx);
+
+	/// Gets the specified agent from the pool.
+	///	 @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
+	/// @return The requested agent.
+	dtCrowdAgent* getEditableAgent(const int idx);
 
 	/// The maximum number of agents that can be managed by the object.
 	/// @return The maximum number of agents.
@@ -302,11 +317,11 @@ public:
 	
 	/// Gets the filter used by the crowd.
 	/// @return The filter used by the crowd.
-	const dtQueryFilter* getFilter() const { return &m_filter; }
+	inline const dtQueryFilter* getFilter(const int i = 0) const { return (i >= 0 && i < DT_CROWD_MAX_QUERY_FILTER_TYPE) ? &m_filters[i] : 0; }
 
 	/// Gets the filter used by the crowd.
 	/// @return The filter used by the crowd.
-	dtQueryFilter* getEditableFilter() { return &m_filter; }
+	inline dtQueryFilter* getEditableFilter(const int i = 0) { return (i >= 0 && i < DT_CROWD_MAX_QUERY_FILTER_TYPE) ? &m_filters[i] : 0; }
 
 	/// Gets the search extents [(x, y, z)] used by the crowd for query operations. 
 	/// @return The search extents used by the crowd. [(x, y, z)]
