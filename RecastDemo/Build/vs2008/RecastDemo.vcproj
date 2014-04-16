@@ -21,7 +21,6 @@
 			OutputDirectory="..\..\Bin"
 			IntermediateDirectory="obj\Debug\RecastDemo"
 			ConfigurationType="1"
-			InheritedPropertySheets="C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Language.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Config_Debug.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Target_StaticLinkedExecutable.vsprops"
 			CharacterSet="2"
 			>
 			<Tool
@@ -106,7 +105,6 @@
 			OutputDirectory="..\..\Bin"
 			IntermediateDirectory="obj\Release\RecastDemo"
 			ConfigurationType="1"
-			InheritedPropertySheets="C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Language.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Target_StaticLinkedExecutable.vsprops;C:\Gamebryo\Gamebryo-LightSpeed-2012-Binary\Build\CoreRuntime\Win32\VC90\Property Sheets\GB_Config_Shipping.vsprops"
 			CharacterSet="2"
 			>
 			<Tool

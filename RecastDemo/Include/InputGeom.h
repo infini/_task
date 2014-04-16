@@ -65,6 +65,9 @@ class InputGeom
 #ifdef INTEGRATION_BUILD
 	bool m_integrationBuild;
 #endif // INTEGRATION_BUILD
+#ifdef VARIABLE_TILE_SIZE
+	bool m_variableTileSize;
+#endif // VARIABLE_TILE_SIZE
 	///@}
 	
 public:
@@ -114,6 +117,11 @@ public:
 #ifdef INTEGRATION_BUILD
 	void	setIntegrationBuild( const bool integrationBuild )	{	m_integrationBuild = integrationBuild;	}
 #endif // INTEGRATION_BUILD
+
+#ifdef VARIABLE_TILE_SIZE
+	void	setVariableTileSize( const bool variableTileSize )	{	m_variableTileSize = variableTileSize;	}
+	bool	isVariableTileSize() const	{	return m_variableTileSize;	}
+#endif // VARIABLE_TILE_SIZE
 
 // #ifdef MODIFY_OFF_MESH_CONNECTION
 	std::vector<dtJumpMeshConnection>	tableJumpMeshConnection;

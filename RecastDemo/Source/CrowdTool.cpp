@@ -50,30 +50,37 @@ static bool isectSegAABB(const dtCoordinates& _sp, const dtCoordinates& _sq,
 	tmin = 0;  // set to -FLT_MAX to get first hit on line
 	tmax = FLT_MAX;		// set to max distance ray can travel (for segment)
 
-	//////////////////////////////////////////////////////////////////////////
-	float d[3], sp[3], sq[3], amin[3], amax[3];
-	TransformCoordinates::transform( _d, d );
-	TransformCoordinates::transform( _sp, sp );
-	TransformCoordinates::transform( _sq, sq );
-	TransformCoordinates::transform( _amin, amin );
-	TransformCoordinates::transform( _amax, amax );
-	//////////////////////////////////////////////////////////////////////////
-	
 	// For all three slabs
 	for (int i = 0; i < 3; i++)
 	{
-		if (fabsf(d[i]) < EPS)
+		//////////////////////////////////////////////////////////////////////////
+		float d, sp, sq, amin, amax;
+		switch ( i ) {
+			case 0:
+				d = _d.X();	sp = _sp.X();	sq = _sq.X();	amin = _amin.X();	amax = _amax.X();
+				break;
+			case 1:
+				d = _d.Y();	sp = _sp.Y();	sq = _sq.Y();	amin = _amin.Y();	amax = _amax.Y();
+				break;
+			case 2:
+				d = _d.Z();	sp = _sp.Z();	sq = _sq.Z();	amin = _amin.Z();	amax = _amax.Z();
+				break;
+			default:
+				return false;
+		}
+		//////////////////////////////////////////////////////////////////////////
+		if (fabsf(d) < EPS)
 		{
 			// Ray is parallel to slab. No hit if origin not within slab
-			if (sp[i] < amin[i] || sp[i] > amax[i])
+			if (sp < amin || sp > amax)
 				return false;
 		}
 		else
 		{
 			// Compute intersection t value of ray with near and far plane of slab
-			const float ood = 1.0f / d[i];
-			float t1 = (amin[i] - sp[i]) * ood;
-			float t2 = (amax[i] - sp[i]) * ood;
+			const float ood = 1.0f / d;
+			float t1 = (amin - sp) * ood;
+			float t2 = (amax - sp) * ood;
 			// Make t1 be intersection with near plane, t2 with far plane
 			if (t1 > t2) dtSwap(t1, t2);
 			// Compute the intersection of slab intersections intervals

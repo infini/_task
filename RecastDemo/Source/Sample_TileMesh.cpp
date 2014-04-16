@@ -743,60 +743,62 @@ bool Sample_TileMesh::handleBuild()
 	}
 
 #ifdef VARIABLE_TILE_SIZE
-	const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
-	const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
-	std::vector< std::pair<RANGE_TILE_PER_VERTICES, int> > tableCountTiles;
-	const int width = static_cast<int>( /*ceilf*/((bmax.X() - bmin.X()) / m_cellSize) );
+	if( m_geom->isVariableTileSize() ) {
+		const dtCoordinates bmin( m_geom->getMeshBoundsMin() );
+		const dtCoordinates bmax( m_geom->getMeshBoundsMax() );
+		std::vector< std::pair<RANGE_TILE_PER_VERTICES, int> > tableCountTiles;
+		const int width = static_cast<int>( /*ceilf*/((bmax.X() - bmin.X()) / m_cellSize) );
 
-	RANGE_TILE_PER_VERTICES range;
-	range.maxCountTiles = INT_MAX;
-	for( int count = RC_MAX_COUNT_TILES; count > RC_MIN_COUNT_TILES; --count ) {
-		if( width % count == 0 ) {
-			range.minCountTiles = count;
-			tableCountTiles.push_back( std::make_pair( range, count ) );
-			range.maxCountTiles = count-1;
+		RANGE_TILE_PER_VERTICES range;
+		range.maxCountTiles = INT_MAX;
+		for( int count = RC_MAX_COUNT_TILES; count > RC_MIN_COUNT_TILES; --count ) {
+			if( width % count == 0 ) {
+				range.minCountTiles = count;
+				tableCountTiles.push_back( std::make_pair( range, count ) );
+				range.maxCountTiles = count-1;
+			}
 		}
-	}
-	range.minCountTiles = 0;
-	tableCountTiles.push_back( std::make_pair( range, RC_MIN_COUNT_TILES ) );
+		range.minCountTiles = 0;
+		tableCountTiles.push_back( std::make_pair( range, RC_MIN_COUNT_TILES ) );
 
-	const rcMeshLoaderObj* mesh = m_geom->getMesh();
-	const int countVerts = mesh->getVertCount() + mesh->getVariableHeightCount() - RC_MAX_GROUND_FLOOR_VERTICES;
-	const RANGE_TILE_PER_VERTICES findRange( countVerts / RC_DIVIDE_VERTICES );
-	int countTiles = 0;
-	for( unsigned int nth = 0; nth < tableCountTiles.size(); ++nth ) {
-		if( findRange == tableCountTiles.at(nth).first ) {
-			countTiles = tableCountTiles.at(nth).second;
-			break;
+		const rcMeshLoaderObj* mesh = m_geom->getMesh();
+		const int countVerts = mesh->getVertCount() + mesh->getVariableHeightCount() - RC_MAX_GROUND_FLOOR_VERTICES;
+		const RANGE_TILE_PER_VERTICES findRange( countVerts / RC_DIVIDE_VERTICES );
+		int countTiles = 0;
+		for( unsigned int nth = 0; nth < tableCountTiles.size(); ++nth ) {
+			if( findRange == tableCountTiles.at(nth).first ) {
+				countTiles = tableCountTiles.at(nth).second;
+				break;
+			}
 		}
-	}
-	m_tileSize = static_cast<float>( width / countTiles );
+		m_tileSize = static_cast<float>( width / countTiles );
 
-	// temporary
-	if( countVerts == 0 ) {
-		m_cellSize = 1.0f;
-		m_tileSize = ceilf( (bmax.X() - bmin.X()) / m_cellSize );
-	}
+		// temporary
+		if( countVerts == 0 ) {
+			m_cellSize = 1.0f;
+			m_tileSize = ceilf( (bmax.X() - bmin.X()) / m_cellSize );
+		}
 
-	int gw = 0, gh = 0;
-	rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
-	const int ts = (int)m_tileSize;
-	const int tw = (gw + ts-1) / ts;
-	const int th = (gh + ts-1) / ts;
+		int gw = 0, gh = 0;
+		rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
+		const int ts = (int)m_tileSize;
+		const int tw = (gw + ts-1) / ts;
+		const int th = (gh + ts-1) / ts;
 
 #ifdef DT_POLYREF64
-	int tileBits = (int)ilog2(nextPow2(tw*th));
-	if (tileBits > DT_TILE_BITS) tileBits = DT_TILE_BITS;
-	int polyBits = (DT_TILE_BITS + DT_POLY_BITS) - tileBits;
-	m_maxTiles = 1 << tileBits;
-	m_maxPolysPerTile = 1 << polyBits;
+		int tileBits = (int)ilog2(nextPow2(tw*th));
+		if (tileBits > DT_TILE_BITS) tileBits = DT_TILE_BITS;
+		int polyBits = (DT_TILE_BITS + DT_POLY_BITS) - tileBits;
+		m_maxTiles = 1 << tileBits;
+		m_maxPolysPerTile = 1 << polyBits;
 #else // DT_POLYREF64
-	int tileBits = rcMin((int)ilog2(nextPow2(tw*th)), 14);
-	if (tileBits > 14) tileBits = 14;
-	int polyBits = 22 - tileBits;
-	m_maxTiles = 1 << tileBits;
-	m_maxPolysPerTile = 1 << polyBits;
+		int tileBits = rcMin((int)ilog2(nextPow2(tw*th)), 14);
+		if (tileBits > 14) tileBits = 14;
+		int polyBits = 22 - tileBits;
+		m_maxTiles = 1 << tileBits;
+		m_maxPolysPerTile = 1 << polyBits;
 #endif // DT_POLYREF64
+	}
 #endif // VARIABLE_TILE_SIZE
 
 	dtNavMeshParams params;
@@ -1016,7 +1018,8 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 	m_cfg.borderSize = m_cfg.walkableRadius + 3; // Reserve enough padding.
 	m_cfg.width = m_cfg.tileSize + m_cfg.borderSize*2;
 	m_cfg.height = m_cfg.tileSize + m_cfg.borderSize*2;
-	m_cfg.detailSampleDist = m_detailSampleDist < 0.9f ? 0 : m_cellSize * m_detailSampleDist;
+	//m_cfg.detailSampleDist = m_detailSampleDist < 0.9f ? 0 : m_cellSize * m_detailSampleDist;
+	m_cfg.detailSampleDist = m_detailSampleDist < 0.9f ? 0 : m_cellSize * m_detailSampleDist * ( m_tileSize * m_cellSize * 1.5f );
 	m_cfg.detailSampleMaxError = m_cellHeight * m_detailSampleMaxError;
 	
 	rcVcopy(m_cfg.bmin, bmin);

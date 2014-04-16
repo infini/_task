@@ -130,11 +130,11 @@ void Sample::resetCommonSettings()
 	m_agentMaxClimb			= 0.1f;
 	m_agentMaxSlope			= 80.0f;
 	m_regionMinSize			= 4.0f;
-	m_regionMergeSize		= 100.0f;
+	m_regionMergeSize		= 10.0f;
 	m_monotonePartitioning	= false;
 	m_edgeMaxLen			= 0.0f;
-	m_edgeMaxError			= 1.3f;
-	m_vertsPerPoly			= 6.0f;
+	m_edgeMaxError			= 1.5f;
+	m_vertsPerPoly			= 4.0f;
 	m_detailSampleDist		= 8.0f;
 	m_detailSampleMaxError	= 1.0f;
 }

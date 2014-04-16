@@ -1,20 +1,16 @@
 
 #pragma once
 
-#include <efd/Point3.h>
-
 class dtCoordinates
 {
 public:
 	dtCoordinates();
+	dtCoordinates( const dtCoordinates& rhs );
+	dtCoordinates( const float* rhs );
 	dtCoordinates( const float x, const float y, const float z );
-	/*explicit*/ dtCoordinates( const dtCoordinates& rhs );
-	explicit dtCoordinates( const efd::Point3& rhs );
-	explicit dtCoordinates( const float* rhs );
 	~dtCoordinates();
 
 	dtCoordinates&	operator = ( const dtCoordinates& rhs );
-	dtCoordinates&	operator = ( const efd::Point3& rhs );
 	dtCoordinates&	operator = ( const float* rhs );
 
 	dtCoordinates	operator +( const dtCoordinates& rhs ) const;
@@ -35,9 +31,3 @@ private:
 	float	m_Y;
 	float	m_Z;
 };
-
-namespace TransformCoordinates
-{
-	void	transform( const dtCoordinates& src, float* dest );
-	void	transform( const dtCoordinates& src, efd::Point3& dest );
-}

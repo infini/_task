@@ -245,10 +245,6 @@ bool dtPointInPolygon(const dtCoordinates& pt, const dtCoordinates* verts, const
 	{
 		const dtCoordinates vi( verts[i] );
 		const dtCoordinates vj( verts[j] );
-		if( ( vi.X() == pt.X() && vi.Z() == pt.Z() ) || ( vj.X() == pt.X() && vj.Z() == pt.Z() ) ) {
-			return true;
-		}
-
 		const float t0 = (vj.X()-vi.X()) * (pt.Z()-vi.Z());
 		const float t1 = (vj.Z()-vi.Z());
 		const float t = (t0 != 0.f && t1 != 0.f ) ? (t0 / t1 + vi.X()) : vi.X();
@@ -256,15 +252,10 @@ bool dtPointInPolygon(const dtCoordinates& pt, const dtCoordinates* verts, const
 		if( ( (pt.Z() < vi.Z()) != (pt.Z() < vj.Z()) ) && (pt.X() < t) ) {
 			in = !in;
 		}
-		else {
-			if( (pt.X() == t) && ( (pt.Z() < vi.Z()) != (pt.Z() < vj.Z()) ) ) {
-				edge = !edge;
-			}
-			else if( ( (pt.Z() == vi.Z()) && (pt.Z() == vj.Z()) ) && (pt.X() < t) ) {
+		else if( ( (vi.Z() <= pt.Z()) && (pt.Z() <= vj.Z()) ) && (pt.X() == t) ) {
 				edge = !edge;
 			}
 		}
-	}
 	return in || edge;
 }
 
@@ -428,7 +419,6 @@ float	dtCorrectHeightPointTriangle( const dtCoordinates& pos, const dtCoordinate
 bool	_dtIntersectSegmentPoly2D( const dtCoordinates& p0, const dtCoordinates& p1, const dtCoordinates* verts, const int nverts, float& tmin, float& tmax, int& segMin, int& segMax, dtCoordinates& resultPosition )
 {
 	static const float EPS = 0.00000001f;
-	static const float gap = 0.00001f;
 
 	tmin = 0;
 	tmax = 1;
@@ -457,12 +447,8 @@ bool	_dtIntersectSegmentPoly2D( const dtCoordinates& p0, const dtCoordinates& p1
 		const float t = n / d;
 		if( d < 0 ) {
 			if( tmin < t ) {
-				if( t < gap ) {
-					continue;
-				}
-				if( tmax < tmin ) {
-					//return false;
-					continue;
+				if( tmax < t ) {
+					return false;
 				}
 				tmin = t;
 				segMin = j;
@@ -470,100 +456,18 @@ bool	_dtIntersectSegmentPoly2D( const dtCoordinates& p0, const dtCoordinates& p1
 		}
 		else {
 			if( t < tmax ) {
-				if( t < gap ) {
-					continue;
-				}
-				if( tmax < tmin ) {
-					//return false;
-					continue;
+				if( t < tmin ) {
+					return false;
 				}
 				tmax = t;
 				segMax = j;
-				//////////////////////////////////////////////////////////////////////////
-				// intersect point
-// 				const float t1 = ((p0.Z() - v0.Z()) * (v1.X() - v0.X())) - ((p0.X() - v0.X()) * (v1.Z() - v0.Z()));
-// 				const float t2 = ((p1.X() - p0.X()) * (v1.Z() - v0.Z())) - ((p1.Z() - p0.Z()) * (v1.X() - v0.X()));
-// 				float t0 = t1 / t2;
-// 				t0 = 0.002f < t0 ? t0 - 0.002f : 0.0f;
-
-				float t0 ( tmax );
-				t0 = 0.002f < t0 ? t0 - 0.002f : 0.0f;
-				dtVlerp( resultPosition, p0, p1, t0 );
-				//////////////////////////////////////////////////////////////////////////
 			}
 		}
 	}
 
-	//return true;
-	return segMin != -1 || segMax != -1;
-
-// 	segMin = -1;
-// 	segMax = -1;
-// 	tmin = 0;
-// 	tmax = 0;
-// 	float t = 0;
-// 	bool intersect = false;
-// 
-// 	if( dtPointInPolygon( p0, verts, nverts ) && dtPointInPolygon( p1, verts, nverts ) ) {
-// 		dtVcopy( resultPosition, p1 );
-// 		return true;
-// 	}
-// 
-// 	for( int i = 0, j = nverts-1; i < nverts; j=i++ ) {
-// 		const float* v0 = &verts[i*3];
-// 		const float* v1 = &verts[j*3];
-// 
-// 		const float t0 = ((v0[0] - v1[0]) * (p0[2] - v0[2])) + ((v0[2] - v1[2]) * (v0[0] - p0[0]));
-// 		const float t1 = ((v0[0] - v1[0]) * (p1[2] - v0[2])) + ((v0[2] - v1[2]) * (v0[0] - p1[0]));
-// 
-// 		if( t0 * t1 < 0 ) {
-// 			intersect = true;
-// 			if( t0 < 0 ) {
-// 				// max
-// 				tmax = tmax == 0 ? (t0 + t1) : tmax;
-// 				if( tmax <= (t0 + t1) ) {
-// 					segMax = j;
-// 					tmax = (t0 + t1);
-// 				}
-// 				else {
-// 					continue;
-// 				}
-// 			}
-// 			else {
-// 				// min
-// 				tmin = tmin == 0 ? (t0 + t1) : tmin;
-// 				if( (t0 + t1) <= tmin ) {
-// 					segMin = j;
-// 					tmin = (t0 + t1);
-// 				}
-// 				else {
-// 					continue;
-// 				}
-// 			}
-// 			//////////////////////////////////////////////////////////////////////////
-// 			// intersect point
-// 			const float t3 = ((p0[2] - v0[2]) * (v1[0] - v0[0])) - ((p0[0] - v0[0]) * (v1[2] - v0[2]));
-// 			const float t4 = ((p1[0] - p0[0]) * (v1[2] - v0[2])) - ((p1[2] - p0[2]) * (v1[0] - v0[0]));
-// 			if( t4 == 0.0f ) {
-// 				continue;
-// 			}
-// 			t = t3 / t4;
-// 			t *= 0.95f;
-// 			dtVlerp( resultPosition, p0, p1, t );
-// 			//////////////////////////////////////////////////////////////////////////
-// 		}
-// 	}
-// 
-// 	if( intersect ) {
-// 		if( dtPointInPolygon( p1, verts, nverts ) ) {
-// 			dtVcopy( resultPosition, p1 );
-// 		}
-// 		if( !dtPointInPolygon( resultPosition, verts, nverts ) ) {
-// 			return false;
-// 		}
-// 	}
-// 
-// 	return intersect;
+	const float t0 = 0.002f < tmax ? tmax - 0.002f : 0.0f;
+	dtVlerp( resultPosition, p0, p1, t0 );
+	return true;
 }
 //////////////////////////////////////////////////////////////////////////
 // MIRCHANG

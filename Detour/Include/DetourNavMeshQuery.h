@@ -425,14 +425,14 @@ public:
 	dtStatus	findCorrectPoly( const dtCoordinates& position, dtPolyRef& polyID ) const;
 	dtStatus	queryCorrectPolygons( const dtCoordinates& position, dtPolyRef& polyID ) const;
 
-	dtStatus	findCorrectPoly2D( const dtCoordinates& pos, dtPolyRef& polyID, const bool ground ) const;
-	dtStatus	queryCorrectPolygons2D( const dtCoordinates& pos, dtPolyRef& polyID, const bool ground ) const;
+	dtStatus	findCorrectPoly2D( const dtCoordinates& position, dtPolyRef& polyID, const bool ground ) const;
+	dtStatus	queryCorrectPolygons2D( const dtCoordinates& position, dtPolyRef& polyID, const bool ground ) const;
 
-	dtStatus	castRay( const dtPolyRef startPolyID, const dtCoordinates& startPos, const dtCoordinates& endPos, float& interpolationFactor, dtCoordinates& normal, dtPolyRef& endPolyID ) const;
+	dtStatus	castRay( const dtPolyRef startPolyID, const dtCoordinates& startPosition, const dtCoordinates& endPosition, float& interpolationFactor, dtCoordinates& normal, dtPolyRef& endPolyID ) const;
 
-	dtStatus	findMovablePosition( const dtPolyRef startPolyID, const dtCoordinates& startPos, const dtCoordinates& endPos, dtPolyRef& resultPolyID, dtCoordinates& resultPosition, dtCoordinates& normal ) const;
+	dtStatus	findMovablePosition( const dtPolyRef startPolyID, const dtCoordinates& startPosition, const dtCoordinates& endPosition, dtPolyRef& resultPolyID, dtCoordinates& resultPosition, dtCoordinates& normal ) const;
 
-	dtStatus	getCorrectPolyHeight( const dtPolyRef polyID, const dtCoordinates& pos, float& height ) const;
+	dtStatus	getCorrectPolyHeight( const dtPolyRef polyID, const dtCoordinates& position, float& height ) const;
 	// MIRCHANG
 	//////////////////////////////////////////////////////////////////////////
 

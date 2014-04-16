@@ -156,6 +156,9 @@ int main(int /*argc*/, char** /*argv*/)
 #ifdef INTEGRATION_BUILD
 	bool integrationBuild = false;
 #endif // INTEGRATION_BUILD
+#ifdef VARIABLE_TILE_SIZE
+	bool variableTileSize = false;
+#endif // VARIABLE_TILE_SIZE
 
 	int propScroll = 0;
 	int logScroll = 0;
@@ -561,6 +564,11 @@ int main(int /*argc*/, char** /*argv*/)
 				integrationBuild = !integrationBuild;
 			}
 #endif // INTEGRATION_BUILD
+#ifdef VARIABLE_TILE_SIZE
+			if( imguiCheck( "Variable Tile Size", variableTileSize ) ) {
+				variableTileSize = !variableTileSize;
+			}
+#endif // VARIABLE_TILE_SIZE
 
 			imguiSeparator();
 			imguiLabel("Sample");
@@ -661,7 +669,9 @@ int main(int /*argc*/, char** /*argv*/)
 								delete _sample;
 								continue;
 							}
-
+#ifdef VARIABLE_TILE_SIZE
+							_geom->setVariableTileSize( variableTileSize );
+#endif // VARIABLE_TILE_SIZE
 							if( !_geom->loadMesh( &ctx, path ) ) {
 								delete _sample;
 								delete _geom;
@@ -814,6 +824,9 @@ int main(int /*argc*/, char** /*argv*/)
 #ifdef INTEGRATION_BUILD
 						geom->setIntegrationBuild( integrationBuild );
 #endif // INTEGRATION_BUILD
+#ifdef VARIABLE_TILE_SIZE
+						geom->setVariableTileSize( variableTileSize );
+#endif // VARIABLE_TILE_SIZE
 						if (!geom || !geom->loadMesh(&ctx, path))
 						{
 							delete geom;
@@ -884,6 +897,9 @@ int main(int /*argc*/, char** /*argv*/)
 						logScroll = 0;
 						ctx.dumpLog("Geom load log %s:", meshName);
 					}
+#ifdef VARIABLE_TILE_SIZE
+					geom->setVariableTileSize( variableTileSize );
+#endif // VARIABLE_TILE_SIZE
 					if (sample && geom)
 					{
 						sample->handleMeshChanged(geom);
