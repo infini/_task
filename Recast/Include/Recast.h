@@ -1165,60 +1165,9 @@ inline bool rcIsSimilarTypeArea( const unsigned int lhs_area, const unsigned int
 	return (rcIsTerrainArea( lhs_area ) && rcIsTerrainArea( rhs_area )) || (rcIsObjectArea(lhs_area) && rcIsObjectArea(rhs_area));
 }
 
-inline unsigned short	rcGetMeshFlag( const unsigned int area )
-{
-	unsigned short mesh_flag = RC_MESH_FLAG_NULL;
-	
-	if( (area & RC_UNDER_FLOOR_AREA) == RC_UNDER_FLOOR_AREA ) {
-		mesh_flag |= RC_MESH_FLAG_UNDER_FLOOR;
-	}
-	if( (area & RC_TERRAIN_AREA) == RC_TERRAIN_AREA ) {
-		mesh_flag |= RC_MESH_FLAG_TERRAIN;
-	}
-	if( (area & RC_OBJECT_AREA) == RC_OBJECT_AREA ) {
-		mesh_flag |= RC_MESH_FLAG_OBJECT;
-	}
-
-	return mesh_flag;
-}
-
-inline bool	rcIsLinkableMeshFlag( const unsigned short lhs, const unsigned short rhs )
-{
-	if( ((lhs & RC_MESH_FLAG_OBJECT) != RC_MESH_FLAG_OBJECT && (rhs & RC_MESH_FLAG_OBJECT) != RC_MESH_FLAG_OBJECT)
-		|| (lhs == RC_MESH_FLAG_NULL || rhs == RC_MESH_FLAG_NULL) ) {
-		return false;
-	}
-	if( (lhs & RC_MESH_FLAG_UNDER_FLOOR) == RC_MESH_FLAG_UNDER_FLOOR ) {
-		if( (lhs & RC_MESH_FLAG_OBJECT) != RC_MESH_FLAG_OBJECT ) {
-			return false;
-		}
-		if( (rhs & RC_MESH_FLAG_UNDER_FLOOR) != RC_MESH_FLAG_UNDER_FLOOR && (rhs & RC_MESH_FLAG_OBJECT) == RC_MESH_FLAG_OBJECT ) {
-			return false;
-		}
-	}
-	if( (rhs & RC_MESH_FLAG_UNDER_FLOOR) == RC_MESH_FLAG_UNDER_FLOOR ) {
-		if( (rhs & RC_MESH_FLAG_OBJECT) != RC_MESH_FLAG_OBJECT ) {
-			return false;
-		}
-		if( (lhs & RC_MESH_FLAG_UNDER_FLOOR) != RC_MESH_FLAG_UNDER_FLOOR && (lhs & RC_MESH_FLAG_OBJECT) == RC_MESH_FLAG_OBJECT ) {
-			return false;
-		}
-	}
-	return true;
-}
-
-inline bool rcIsConnectedPoly( const dtCoordinates* src_verts, const int src_vertCount, const dtCoordinates* dest_verts, const int dest_vertCount )
-{
-	for( int i = 0; i < src_vertCount; ++i ) {
-		for( int j = 0; j < dest_vertCount; ++j ) {
-			if( src_verts[i].X() == dest_verts[j].X() && src_verts[i].Y() == dest_verts[j].Y() && src_verts[i].Z() == dest_verts[j].Z() ) {
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
+unsigned short	rcGetMeshFlag( const unsigned int area );
+bool	rcIsLinkableMeshFlag( const unsigned short lhs, const unsigned short rhs );
+bool	rcIsConnectedPoly( const dtCoordinates* src_verts, const int src_vertCount, const dtCoordinates* dest_verts, const int dest_vertCount );
 #endif // MODIFY_VOXEL_FLAG
 
 inline bool	rcIsConnectedWalkableArea( const rcCompactSpan& s, const int dir )

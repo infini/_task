@@ -135,7 +135,7 @@ void Sample::resetCommonSettings()
 	m_edgeMaxLen			= 0.0f;
 	m_edgeMaxError			= 1.5f;
 	m_vertsPerPoly			= 4.0f;
-	m_detailSampleDist		= 8.0f;
+	m_detailSampleDist		= 10.0f;
 	m_detailSampleMaxError	= 1.0f;
 }
 
