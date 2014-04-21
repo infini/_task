@@ -632,7 +632,7 @@ public:
 	const dtMeshTile*	getTilesAt( const int x, const int y ) const;
 	const dtCoordinates&	getOrigin() const	{	return m_orig;	}
 	bool	isConnectedPoly( const dtPolyRef startRef, const dtPolyRef endRef ) const;
-	float	getSlopeInterpolationFactor( const dtPolyRef navMeshID, const dtCoordinates& position ) const;
+	float	getSlopeInterpolationFactor( const dtPolyRef navMeshID, const dtCoordinates& position, dtCoordinates& normal ) const;
 	// MIRCHANG
 	//////////////////////////////////////////////////////////////////////////
 

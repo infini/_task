@@ -3408,10 +3408,10 @@ dtPolyRef	dtNavMeshQuery::queryCorrectPolygonsInTile( const dtMeshTile* tile, co
 	unsigned short bmin[3], bmax[3];
 	// dtClamp query box to world box.
 	float minx = dtClamp(position.X(), tbmin.X(), tbmax.X()) - tbmin.X();
-	float miny = dtClamp(position.Y(), tbmin.Y(), tbmax.Y()) - tbmin.Y() - tile->header->walkableClimb;
+	float miny = dtClamp(position.Y() - tile->header->walkableClimb, tbmin.Y(), tbmax.Y()) - tbmin.Y();
 	float minz = dtClamp(position.Z(), tbmin.Z(), tbmax.Z()) - tbmin.Z();
 	float maxx = dtClamp(position.X(), tbmin.X(), tbmax.X()) - tbmin.X();
-	float maxy = dtClamp(position.Y(), tbmin.Y(), tbmax.Y()) - tbmin.Y() + tile->header->walkableClimb;
+	float maxy = dtClamp(position.Y() + tile->header->walkableClimb, tbmin.Y(), tbmax.Y()) - tbmin.Y();
 	float maxz = dtClamp(position.Z(), tbmin.Z(), tbmax.Z()) - tbmin.Z();
 	// Quantize
 	bmin[0] = (unsigned short)(qfac * minx) & 0xfffe;
@@ -3518,10 +3518,10 @@ dtPolyRef	dtNavMeshQuery::queryCorrectPolygonsInTile2D( const dtMeshTile* tile, 
 	unsigned short bmin[3], bmax[3];
 	// dtClamp query box to world box.
 	float minx = dtClamp(pos.X(), tbmin.X(), tbmax.X()) - tbmin.X();
-	float miny = dtClamp(pos.Y(), tbmin.Y(), tbmax.Y()) - tbmin.Y() - tile->header->walkableClimb;
+	float miny = dtClamp(pos.Y() - tile->header->walkableClimb, tbmin.Y(), tbmax.Y()) - tbmin.Y();
 	float minz = dtClamp(pos.Z(), tbmin.Z(), tbmax.Z()) - tbmin.Z();
 	float maxx = dtClamp(pos.X(), tbmin.X(), tbmax.X()) - tbmin.X();
-	float maxy = dtClamp(pos.Y(), tbmin.Y(), tbmax.Y()) - tbmin.Y() + tile->header->walkableClimb;
+	float maxy = dtClamp(pos.Y() + tile->header->walkableClimb, tbmin.Y(), tbmax.Y()) - tbmin.Y();
 	float maxz = dtClamp(pos.Z(), tbmin.Z(), tbmax.Z()) - tbmin.Z();
 	// Quantize
 	bmin[0] = (unsigned short)(qfac * minx) & 0xfffe;

@@ -1067,6 +1067,10 @@ void	rcFilterSpans( rcContext* ctx, const int /*walkableHeight*/, const int /*wa
 					s->area = RC_NULL_AREA;
 				}
 
+				if( s->next != NULL && rcIsTerrainArea( s->next->area ) ) {
+					s->area = RC_NULL_AREA;
+				}
+
 				//////////////////////////////////////////////////////////////////////////
 				// temporary
 // 				if( (s->area & RC_UNDER_FLOOR_AREA) == RC_UNDER_FLOOR_AREA ) {

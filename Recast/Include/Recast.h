@@ -46,9 +46,9 @@ static const int ALLOW_VERTEX_HEIGHT_GAP = 0;
 
 // default option
 #ifdef VARIABLE_TILE_SIZE
-static const int RC_MIN_COUNT_TILES		= 20;	// 8 x 8 = 5', 40kb	// 16 x 16 = 2', 120kb
+static const int RC_MIN_COUNT_TILES		= 32;	// 8 x 8 = 5', 40kb	// 16 x 16 = 2', 120kb
 static const int RC_MAX_COUNT_TILES		= 100;	// max 100 x 100
-static const int RC_DIVIDE_VERTICES		= 50000 / RC_MAX_COUNT_TILES;	// 50,000ea vertices / 50ea tiles
+static const int RC_DIVIDE_VERTICES		= 40000 / RC_MAX_COUNT_TILES;	// 50,000ea vertices / 100ea tiles
 #endif // VARIABLE_TILE_SIZE
 
 /// Recast log categories.

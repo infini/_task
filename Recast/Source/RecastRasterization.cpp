@@ -106,17 +106,77 @@ static void addSpan(rcHeightfield& hf, const int x, const int y,
 	do {
 		if (cur->smin > s->smax)
 		{
+#ifdef MODIFY_VOXEL_FLAG
+			if( rcIsTerrainArea( cur->area ) ) {
+				freeSpan( hf, s );
+				return;
+			}
+			else {
+				break;
+			}
+#else // MODIFY_VOXEL_FLAG
 			// Current span is further than the new span, break.
 			break;
+#endif // MODIFY_VOXEL_FLAG
 		}
 		else if (cur->smax < s->smin)
 		{
+#ifdef MODIFY_VOXEL_FLAG
+			if( rcIsTerrainArea( s->area ) ) {
+				rcSpan* next = cur->next;
+				freeSpan( hf, cur );
+				if( prev != NULL ) {
+					prev->next = next;
+				}
+				else {
+					hf.spans[idx] = next;
+				}
+				cur = next;
+			}
+			else {
+				prev = cur;
+				cur = cur->next;
+			}
+#else // MODIFY_VOXEL_FLAG
 			// Current span is before the new span advance.
 			prev = cur;
 			cur = cur->next;
+#endif // MODIFY_VOXEL_FLAG
 		}
 		else
 		{
+#ifdef MODIFY_VOXEL_FLAG
+			//////////////////////////////////////////////////////////////////////////
+			if( rcIsSimilarTypeArea( s->area, cur->area ) ) {
+				// merge
+				s->smin = rcMin( s->smin, cur->smin );
+				s->smax = rcMax( s->smax, cur->smax );
+				if( rcAbs( static_cast<int>( s->smax ) - static_cast<int>( cur->smax ) ) <= flagMergeThr ) {
+					s->area = rcMax( s->area, cur->area );
+
+// 					const bool walkable = rcIsWalkableArea( s->area ) && rcIsWalkableArea( cur->area );
+// 					s->area = walkable ? s->area | RC_WALKABLE_AREA : s->area | RC_UNWALKABLE_AREA;
+				}
+			}
+			else {
+				s->smin = rcIsTerrainArea( s->area ) ? s->smin : cur->smin;
+				s->smax = rcMax( s->smax, cur->smax );
+				if( rcAbs( static_cast<int>( s->smax ) - static_cast<int>( cur->smax ) ) <= flagMergeThr ) {
+					if( rcIsWalkableArea( s->area ) || rcIsWalkableArea( cur->area ) ) {
+						s->area = RC_TERRAIN_AREA | RC_OBJECT_AREA | RC_WALKABLE_AREA;
+					}
+					else {
+						s->area = RC_TERRAIN_AREA | RC_OBJECT_AREA | RC_UNWALKABLE_AREA;
+					}
+
+// 					bool walkable = false;
+// 					walkable = rcIsObjectArea( s->area ) && rcIsWalkableArea( s->area ) ? true : walkable;
+// 					walkable = rcIsObjectArea( cur->area ) && rcIsWalkableArea( cur->area ) ? true : walkable;
+// 					s->area = walkable ? RC_OBJECT_AREA | RC_WALKABLE_AREA : RC_OBJECT_AREA | RC_UNWALKABLE_AREA;
+				}
+			}
+			//////////////////////////////////////////////////////////////////////////
+#else // MODIFY_VOXEL_FLAG
 			// Merge spans.
 			if (cur->smin < s->smin)
 				s->smin = cur->smin;
@@ -125,22 +185,23 @@ static void addSpan(rcHeightfield& hf, const int x, const int y,
 
 			// Merge flags.
 			if (rcAbs((int)s->smax - (int)cur->smax) <= flagMergeThr) {
-#ifdef MODIFY_VOXEL_FLAG
-				if( rcIsSimilarTypeArea( s->area, cur->area ) ) {
-					s->area = rcMax(s->area, cur->area);
-				}
-				else {
-					if( rcIsWalkableArea( s->area ) || rcIsWalkableArea( cur->area ) ) {
-						s->area = RC_OBJECT_AREA | RC_WALKABLE_AREA;
-					}
-					else {
-						s->area = RC_OBJECT_AREA | RC_UNWALKABLE_AREA;
-					}
-				}
-#else // MODIFY_VOXEL_FLAG
+// #ifdef MODIFY_VOXEL_FLAG
+// 				if( rcIsSimilarTypeArea( s->area, cur->area ) ) {
+// 					s->area = rcMax(s->area, cur->area);
+// 				}
+// 				else {
+// 					if( rcIsWalkableArea( s->area ) || rcIsWalkableArea( cur->area ) ) {
+// 						s->area = RC_OBJECT_AREA | RC_WALKABLE_AREA;
+// 					}
+// 					else {
+// 						s->area = RC_OBJECT_AREA | RC_UNWALKABLE_AREA;
+// 					}
+// 				}
+// #else // MODIFY_VOXEL_FLAG
 				s->area = rcMax(s->area, cur->area);
-#endif // MODIFY_VOXEL_FLAG
+//#endif // MODIFY_VOXEL_FLAG
 			}
+#endif // MODIFY_VOXEL_FLAG
 
 			// Remove current span.
 			rcSpan* next = cur->next;

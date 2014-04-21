@@ -128,7 +128,7 @@ void Sample::resetCommonSettings()
 	m_agentHeight			= 0.4f;
 	m_agentRadius			= 0.0f;
 	m_agentMaxClimb			= 0.1f;
-	m_agentMaxSlope			= 80.0f;
+	m_agentMaxSlope			= 70.0f;
 	m_regionMinSize			= 4.0f;
 	m_regionMergeSize		= 10.0f;
 	m_monotonePartitioning	= false;

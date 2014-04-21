@@ -1635,7 +1635,7 @@ bool	dtNavMesh::isConnectedPoly( const dtPolyRef startRef, const dtPolyRef endRe
 	return false;
 }
 
-float	dtNavMesh::getSlopeInterpolationFactor( const dtPolyRef navMeshID, const dtCoordinates& position ) const
+float	dtNavMesh::getSlopeInterpolationFactor( const dtPolyRef navMeshID, const dtCoordinates& position, dtCoordinates& normal ) const
 {
 	if( !isValidPolyRef( navMeshID ) ) {
 		return 0;
@@ -1665,6 +1665,7 @@ float	dtNavMesh::getSlopeInterpolationFactor( const dtPolyRef navMeshID, const d
 			dtVsub(e1, verts[2], verts[0]);
 			dtVcross(norm, e0, e1);
 			dtVnormalize(norm);
+			normal = norm;
 
 			return dtClamp( norm.Y(), 0.1f, 1.0f );
 		}
