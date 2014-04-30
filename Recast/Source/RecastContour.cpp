@@ -106,15 +106,19 @@ static int getCornerHeight(int x, int y, int i, int dir,
 
 static void walkContour(int x, int y, int i,
 						rcCompactHeightfield& chf,
-						unsigned char* flags, rcIntArray& points)
+						unsigned char* flags, rcIntArray& points
+#ifdef MODIFY_VOXEL_FLAG
+						, unsigned char& o_area
+#endif // MODIFY_VOXEL_FLAG
+						)
 {
 	// Choose the first non-connected edge
 	unsigned char dir = 0;
 	while ((flags[i] & (1 << dir)) == 0)
 		dir++;
 	
-	unsigned char startDir = dir;
-	int starti = i;
+	const unsigned char startDir = dir;
+	const int starti = i;
 	
 	const unsigned char area = chf.areas[i];
 	
@@ -144,7 +148,7 @@ static void walkContour(int x, int y, int i,
 				const int ai = (int)chf.cells[ax+ay*chf.width].index + rcGetCon(s, dir);
 				r = (int)chf.spans[ai].reg;
 #ifdef MODIFY_VOXEL_FLAG
-				if( !rcIsSimilarTypeArea( area, chf.areas[ai] ) ) {
+				if( !rcIsSimilarTypeArea( area/*chf.areas[i]*/, chf.areas[ai] ) ) {
 #else // MODIFY_VOXEL_FLAG
 				if (area != chf.areas[ai]) {
 #endif // MODIFY_VOXEL_FLAG
@@ -162,6 +166,7 @@ static void walkContour(int x, int y, int i,
 			
 			flags[i] &= ~(1 << dir); // Remove visited edges
 			dir = (dir+1) & 0x3;  // Rotate CW
+			o_area |= chf.areas[i];
 		}
 		else
 		{
@@ -710,13 +715,13 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 				if (!reg || (reg & RC_BORDER_REG)) {
 					continue;
 				}
-				const unsigned char area = chf.areas[i];
+				unsigned char area( chf.areas[i] );
 				
 				verts.resize(0);
 				simplified.resize(0);
 
 				ctx->startTimer(RC_TIMER_BUILD_CONTOURS_TRACE);
-				walkContour(x, y, i, chf, flags, verts);
+				walkContour(x, y, i, chf, flags, verts, area);
 				ctx->stopTimer(RC_TIMER_BUILD_CONTOURS_TRACE);
 
 				ctx->startTimer(RC_TIMER_BUILD_CONTOURS_SIMPLIFY);

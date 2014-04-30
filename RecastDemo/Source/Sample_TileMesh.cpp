@@ -190,7 +190,7 @@ Sample_TileMesh::Sample_TileMesh() :
 	m_drawMode(DRAWMODE_NAVMESH),
 	m_maxTiles(0),
 	m_maxPolysPerTile(0),
-	m_tileSize(64),
+	m_tileSize(128),
 	m_tileCol(duRGBA(0,0,0,32)),
 	m_tileBuildTime(0),
 	m_tileMemUsage(0),
@@ -1029,7 +1029,7 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 	m_cfg.width = m_cfg.tileSize + m_cfg.borderSize*2;
 	m_cfg.height = m_cfg.tileSize + m_cfg.borderSize*2;
 	//m_cfg.detailSampleDist = m_detailSampleDist < 0.9f ? 0 : m_cellSize * m_detailSampleDist;
-	m_cfg.detailSampleDist = m_detailSampleDist < 0.9f ? 0 : m_cellSize * m_detailSampleDist * ( m_tileSize * m_cellSize * 1.1f );
+	m_cfg.detailSampleDist = m_detailSampleDist < 0.9f ? 0 : m_cellSize * m_detailSampleDist * ( m_tileSize * m_cellSize * 1.5f );
 	m_cfg.detailSampleMaxError = m_cellHeight * m_detailSampleMaxError;
 	
 	rcVcopy(m_cfg.bmin, bmin);
@@ -1210,10 +1210,6 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 		return 0;
 	}
 
-#ifdef MODIFY_OFF_MESH_CONNECTION
-	rcGenerateJumpableMeshConnection( *m_pmesh, m_agentHeight, m_agentMaxClimb, *m_geom );
-#endif // MODIFY_OFF_MESH_CONNECTION
-
 	// Build detail mesh.
 	m_dmesh = rcAllocPolyMeshDetail();
 	if (!m_dmesh)
@@ -1237,6 +1233,10 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 		rcFreeContourSet(m_cset);
 		m_cset = 0;
 	}
+
+#ifdef MODIFY_OFF_MESH_CONNECTION
+	rcGenerateJumpableMeshConnection( *m_pmesh, m_agentHeight, m_agentMaxClimb, *m_geom );
+#endif // MODIFY_OFF_MESH_CONNECTION
 	
 	unsigned char* navData = 0;
 	int navDataSize = 0;

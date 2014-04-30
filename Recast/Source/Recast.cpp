@@ -429,6 +429,9 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 					chf.spans[idx].y = (unsigned short)rcClamp(bot, 0, 0xffff);
 					chf.spans[idx].h = (unsigned char)rcClamp(top - bot, 0, 0xff);
 					chf.areas[idx] = s->area;
+#ifdef MODIFY_VOXEL_LEVEL
+					chf.spans[idx].level = s->level;
+#endif // MODIFY_VOXEL_LEVEL
 					idx++;
 					c.count++;
 				}
@@ -458,8 +461,7 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 					const int nx = x + rcGetDirOffsetX(dir);
 					const int ny = y + rcGetDirOffsetY(dir);
 					// First check that the neighbour cell is in bounds.
-					if( nx < 0 + chf.borderSize/2 || ny < 0 + chf.borderSize/2 || nx >= w - chf.borderSize/2 || ny >= h - chf.borderSize/2 ) {
-					//if (nx < 0 || ny < 0 || nx >= w || ny >= h) {
+					if (nx < 0 || ny < 0 || nx >= w || ny >= h) {
 #ifdef MODIFY_VOXEL_MOLD
 						rcSetCon( s, dir, RC_EDGE_CONNECTED );
 #endif // MODIFY_VOXEL_MOLD
@@ -486,9 +488,11 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 						if ((top - bot) >= walkableHeight && rcAbs((int)ns.y - (int)s.y) <= walkableClimb)
 #endif // MODIFY_VOXEL_FLAG
 						{
-#ifdef MODIFY_VOXEL_FLAG
-							//if( rcIsTerrainArea(area_flag) || (rcIsObjectArea(area_flag) && (top - bot) >= walkableHeight) ) {
-#endif // MODIFY_VOXEL_FLAG
+#ifdef MODIFY_VOXEL_LEVEL
+							if( !rcIsSimilarLevelArea( s.level, ns.level ) ) {
+								continue;
+							}
+#endif // MODIFY_VOXEL_LEVEL
 							// Mark direction as walkable.
 							const int lidx = k - (int)nc.index;
 							if (lidx < 0 || lidx > MAX_LAYERS)
@@ -498,9 +502,6 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 							}
 							rcSetCon(s, dir, lidx);
 							break;
-#ifdef MODIFY_VOXEL_FLAG
-							//}
-#endif // MODIFY_VOXEL_FLAG
 						}
 					}
 				}
@@ -573,6 +574,71 @@ namespace
 					const int gap = rcAbs( static_cast<int>(s->smax) - static_cast<int>(ns->smax) );
 					if( gap <= walkableClimb ) {
 						s->area &= ~RC_UNDER_FLOOR_AREA;
+					}
+				}
+			}
+		}
+	}
+
+	void	rcMarkLedgeJumpableLowerFloorSpan( const int x, const int y, const int walkableClimb, rcHeightfield& solid )
+	{
+		const int w = solid.width;
+		const int h = solid.height;
+
+		for( rcSpan* s = solid.spans[x + y*w]; s != NULL; s = s->next ) {
+			if( (s->area & RC_UNDER_FLOOR_AREA) != RC_UNDER_FLOOR_AREA ) {
+				continue;
+			}
+			for( int dir = 0; dir < 4; ++dir ) {
+				const int dx = x + rcGetDirOffsetX(dir);
+				const int dy = y + rcGetDirOffsetY(dir);
+				if( dx < 0 || dy < 0 || dx >= w || dy >= h ) {
+					continue;
+				}
+				for( const rcSpan* ns = solid.spans[dx + dy*w]; ns != NULL; /*ns = ns->next*/ ) {
+					if( (ns->area & RC_UNDER_FLOOR_AREA) == RC_UNDER_FLOOR_AREA ) {
+						ns = ns->next;
+						continue;
+					}
+					if( !rcCanMovableArea( ns->area ) ) {
+						ns = ns->next;
+						continue;
+					}
+					const int gap = /*rcAbs*/( static_cast<int>(s->smax) - static_cast<int>(ns->smax) );
+					if( walkableClimb < gap ) {
+						s->area &= ~RC_UNDER_FLOOR_AREA;
+					}
+					ns = ns->next;
+				}
+			}
+		}
+	}
+
+	void	rcMarkWalkableRaisedSpotSpan( const int x, const int y, const int walkableClimb, rcHeightfield& solid )
+	{
+		const int w = solid.width;
+		const int h = solid.height;
+
+		for( rcSpan* s = solid.spans[x + y*w]; s != NULL; s = s->next ) {
+			if( ( s->area & RC_CLIMBABLE_AREA ) == 0 ) {
+				continue;
+			}
+			for( int dir = 0; dir < 4; ++dir ) {
+				const int dx = x + rcGetDirOffsetX(dir);
+				const int dy = y + rcGetDirOffsetY(dir);
+				if( dx < 0 || dy < 0 || dx >= w || dy >= h ) {
+					continue;
+				}
+				for( rcSpan* ns = solid.spans[dx + dy*w]; ns != NULL; ns = ns->next ) {
+					if( !rcIsWalkableArea( ns->area ) ) {
+						continue;
+					}
+					const int gap = rcAbs( static_cast<int>( s->smax ) - static_cast<int>( ns->smax ) );
+					if( gap <= (walkableClimb*0.3f) ) {
+						s->area &= ~RC_UNWALKABLE_AREA;
+						s->area &= ~RC_CLIMBABLE_AREA;
+						s->area |= RC_WALKABLE_AREA;
+						break;
 					}
 				}
 			}
@@ -680,6 +746,9 @@ namespace
 						cur->smin = s->smin;
 						cur->smax = s->smax;
 						cur->area = s->area;
+#ifdef MODIFY_VOXEL_LEVEL
+						cur->level = s->level;
+#endif // MODIFY_VOXEL_LEVEL
 						freeSpan( hf, s );
 						return;
 					}
@@ -706,14 +775,18 @@ namespace
 
 void	rcModifySpans( rcContext* ctx, const int walkableHeight, const int walkableClimb, rcHeightfield& solid )
 {
+#ifdef DIVISION_TERRAIN_OBJECT
+	rcFilterAlignmentSpans( ctx, solid );
+	rcMergeSpans( ctx, solid );
+#endif // DIVISION_TERRAIN_OBJECT
+#ifdef MODIFY_VOXEL_LEVEL
+	rcMarkLevelSpans( ctx, solid );
+#endif // MODIFY_VOXEL_LEVEL
+
 	///*
-	rcMarkWalkableLowHangingObstacles( ctx, walkableClimb, solid );
 	rcFilterUnwalkableLowHeightSpans( ctx, walkableHeight, solid );
-
-	//rcFilterUnwalkableLedgeSpans( ctx, walkableHeight, walkableClimb, solid );
-	//rcFilterLedgeSpans( ctx, walkableHeight, walkableClimb, solid );
-
 	rcFilterUnderFloorObjectSpans( ctx, solid );
+	rcMarkWalkableRaisedSpotSpans( ctx, walkableClimb, solid );
 	rcMarkTerrainWalkableUnderFloorSpans( ctx, walkableClimb, solid );
 	//*/
 
@@ -769,9 +842,34 @@ void	rcFilterAlignmentSpans( rcContext* ctx, rcHeightfield& solid )
 	const int w = solid.width;
 	const int h = solid.height;
 
+	///*
+	for( int y = 0; y < h; ++y ) {
+		for( int x = 0; x < w; ++x ) {
+			bool erase = false;
+			for( rcSpan* s = solid.spans[x + y*w]; s != NULL;  ) {
+				if( !erase && rcIsTerrainArea( s->area ) && s->smin == 0 && s->smax == 0 ) {
+					erase = true;
+				}
+				if( erase ) {
+// 					rcSpan* next = s->next;
+// 					freeSpan( solid, s );
+// 					s = next;
+					s->area = RC_NULL_AREA;
+					s = s->next;
+				}
+				else {
+					break;
+				}
+			}
+		}
+	}
+	//*/
+
+	/*
 	for( int y = 0; y < h; ++y ) {
 		for( int x = 0; x < w; ++x ) {
 			rcSpan* prev = NULL;
+			bool erase = false;
 			for( rcSpan* s = solid.spans[x + y*w]; s != NULL;  ) {
 				prev = prev == NULL ? s : prev;
 				rcSpan* next = s->next;
@@ -819,6 +917,58 @@ void	rcFilterAlignmentSpans( rcContext* ctx, rcHeightfield& solid )
 			}
 		}
 	}
+	*/
+
+	ctx->stopTimer( RC_TIMER_TEMPORARY );
+}
+
+void	rcMergeSpans( rcContext* ctx, rcHeightfield& solid )
+{
+	rcAssert( ctx );
+
+	ctx->startTimer( RC_TIMER_TEMPORARY );
+
+	const int w = solid.width;
+	const int h = solid.height;
+
+	for( int y = 0; y < h; ++y ) {
+		for( int x = 0; x < w; ++x ) {
+			for( rcSpan* s = solid.spans[x + y*w]; s != NULL && s->next != NULL; s = s->next ) {
+				if( !rcIsSimilarTypeArea( s->area, s->next->area ) && rcAbs( static_cast<int>( s->next->smin ) - static_cast<int>( s->smax ) ) <= 2 ) {
+					// merge
+					rcSpan* next = s->next;
+					s->smax = next->smax;
+					const bool walkable = rcIsWalkableArea( s->area ) || rcIsWalkableArea( next->area );
+					s->area = next->area;
+					s->area &= walkable ? ~RC_UNWALKABLE_AREA : ~RC_WALKABLE_AREA;
+					s->area |= walkable ? RC_WALKABLE_AREA : RC_UNWALKABLE_AREA;
+					s->next = next->next;
+					freeSpan( solid, next );
+				}
+			}
+		}
+	}
+
+	ctx->stopTimer( RC_TIMER_TEMPORARY );
+}
+
+void	rcMarkLevelSpans( rcContext* ctx, rcHeightfield& solid )
+{
+	rcAssert( ctx );
+
+	ctx->startTimer( RC_TIMER_TEMPORARY );
+
+	const int w = solid.width;
+	const int h = solid.height;
+
+	for( int y = 0; y < h; ++y ) {
+		for( int x = 0; x < w; ++x ) {
+			int level = 0;
+			for( rcSpan* s = solid.spans[x + y*w]; s != NULL; s = s->next ) {
+				s->level = level++;
+			}
+		}
+	}
 
 	ctx->stopTimer( RC_TIMER_TEMPORARY );
 }
@@ -845,6 +995,69 @@ void	rcFilterUnderFloorObjectSpans( rcContext* ctx, rcHeightfield& solid )
 	ctx->stopTimer( RC_TIMER_TEMPORARY );
 }
 
+void	rcMarkWalkableRaisedSpotSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid )
+{
+	rcAssert( ctx );
+
+	ctx->startTimer( RC_TIMER_TEMPORARY );
+
+	const int w = solid.width;
+	const int h = solid.height;
+
+// 	for( int y = 0; y < h; ++y ) {
+// 		for( int x = 0; x < w; ++x ) {
+// 			for( rcSpan* s = solid.spans[x + y*w]; s != NULL; s = s->next ) {
+// 				if( ( s->area & RC_CLIMBABLE_AREA ) == 0 ) {
+// 					continue;
+// 				}
+// 				for( int dir = 0; dir < 4; ++dir ) {
+// 					const int dx = x + rcGetDirOffsetX(dir);
+// 					const int dy = y + rcGetDirOffsetY(dir);
+// 					if( dx < 0 || dy < 0 || dx >= w || dy >= h ) {
+// 						continue;
+// 					}
+// 					for( rcSpan* ns = solid.spans[dx + dy*w]; ns != NULL; ns = ns->next ) {
+// 						if( !rcIsWalkableArea( ns->area ) ) {
+// 							continue;
+// 						}
+// 						const int gap = rcAbs( static_cast<int>( s->smax ) - static_cast<int>( ns->smax ) );
+// 						if( gap <= (walkableClimb*0.3f) ) {
+// 							s->area &= ~RC_UNWALKABLE_AREA;
+// 							s->area &= ~RC_CLIMBABLE_AREA;
+// 							s->area |= RC_WALKABLE_AREA;
+// 							break;
+// 						}
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}
+
+
+	for( int y = 0; y < h; ++y ) {
+		for( int x = 0; x < w; ++x ) {
+			rcMarkWalkableRaisedSpotSpan( x, y, walkableClimb, solid );
+		}
+	}
+	for( int x = 0; x < w; ++x ) {
+		for( int y = 0; y < h; ++y ) {
+			rcMarkWalkableRaisedSpotSpan( x, y, walkableClimb, solid );
+		}
+	}
+	for( int y = h-1; 0 <= y; --y ) {
+		for( int x = w-1; 0 <= x; --x ) {
+			rcMarkWalkableRaisedSpotSpan( x, y, walkableClimb, solid );
+		}
+	}
+	for( int x = w-1; 0 <= x; --x ) {
+		for( int y = h-1; 0 <= y; --y ) {
+			rcMarkWalkableRaisedSpotSpan( x, y, walkableClimb, solid );
+		}
+	}
+
+	ctx->stopTimer( RC_TIMER_TEMPORARY );
+}
+
 void	rcMarkTerrainWalkableUnderFloorSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid )
 {
 	rcAssert( ctx );
@@ -854,29 +1067,51 @@ void	rcMarkTerrainWalkableUnderFloorSpans( rcContext* ctx, const int walkableCli
 	const int w = solid.width;
 	const int h = solid.height;
 
+	//////////////////////////////////////////////////////////////////////////
 	for( int y = 0; y < h; ++y ) {
 		for( int x = 0; x < w; ++x ) {
 			rcMarkWalkableLowerFloorSpan( x, y, walkableClimb, solid );
 		}
 	}
-
 	for( int x = 0; x < w; ++x ) {
 		for( int y = 0; y < h; ++y ) {
 			rcMarkWalkableLowerFloorSpan( x, y, walkableClimb, solid );
 		}
 	}
-
 	for( int y = h-1; 0 <= y; --y ) {
 		for( int x = w-1; 0 <= x; --x ) {
 			rcMarkWalkableLowerFloorSpan( x, y, walkableClimb, solid );
 		}
 	}
-
 	for( int x = w-1; 0 <= x; --x ) {
 		for( int y = h-1; 0 <= y; --y ) {
 			rcMarkWalkableLowerFloorSpan( x, y, walkableClimb, solid );
 		}
 	}
+	//////////////////////////////////////////////////////////////////////////
+
+	//////////////////////////////////////////////////////////////////////////
+	for( int y = 0; y < h; ++y ) {
+		for( int x = 0; x < w; ++x ) {
+			rcMarkLedgeJumpableLowerFloorSpan( x, y, walkableClimb, solid );
+		}
+	}
+	for( int x = 0; x < w; ++x ) {
+		for( int y = 0; y < h; ++y ) {
+			rcMarkLedgeJumpableLowerFloorSpan( x, y, walkableClimb, solid );
+		}
+	}
+	for( int y = h-1; 0 <= y; --y ) {
+		for( int x = w-1; 0 <= x; --x ) {
+			rcMarkLedgeJumpableLowerFloorSpan( x, y, walkableClimb, solid );
+		}
+	}
+	for( int x = w-1; 0 <= x; --x ) {
+		for( int y = h-1; 0 <= y; --y ) {
+			rcMarkLedgeJumpableLowerFloorSpan( x, y, walkableClimb, solid );
+		}
+	}
+	//////////////////////////////////////////////////////////////////////////
 
 	ctx->stopTimer( RC_TIMER_TEMPORARY );
 }
@@ -1073,9 +1308,9 @@ void	rcFilterSpans( rcContext* ctx, const int /*walkableHeight*/, const int /*wa
 
 				//////////////////////////////////////////////////////////////////////////
 				// temporary
-// 				if( (s->area & RC_UNDER_FLOOR_AREA) == RC_UNDER_FLOOR_AREA ) {
-// 					s->area = RC_NULL_AREA;
-// 				}
+				if( !rcIsObjectArea( s->area ) && (s->area & RC_UNDER_FLOOR_AREA) == RC_UNDER_FLOOR_AREA ) {
+					s->area = RC_NULL_AREA;
+				}
 				//////////////////////////////////////////////////////////////////////////
 
 				if( rcCanMovableArea( s->area ) ) {
@@ -1144,12 +1379,8 @@ void	rcMarkWalkableLowHangingObstacles( rcContext* ctx, const int walkableClimb,
 				const bool walkable = rcIsWalkableArea( s->area );
 				if( !walkable && previousWalkable ) {
 					if( rcAbs((int)s->smax - (int)ps->smax) <= walkableClimb ) {
-						if( rcIsSimilarTypeArea( s->area, ps->area ) ) {
-							s->area = rcMax( s->area, ps->area );
-						}
-						else {
-							s->area = RC_OBJECT_AREA | RC_WALKABLE_AREA;
-						}
+						s->area &= ~RC_UNWALKABLE_AREA;
+						s->area |= RC_WALKABLE_AREA;
 					}
 				}
 				previousWalkable = walkable;

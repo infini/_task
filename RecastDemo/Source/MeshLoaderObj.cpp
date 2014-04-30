@@ -57,7 +57,11 @@ rcMeshLoaderObj::~rcMeshLoaderObj()
 
 void rcMeshLoaderObj::addVertex(float x, float y, float z, int& cap)
 {
+#ifdef LOAD_ONLY_OBJECT
+	if( m_terrain_count < RC_MAX_GROUND_FLOOR_VERTICES ) {
+#else // LOAD_ONLY_OBJECT
 	if( m_vertCount < RC_MAX_GROUND_FLOOR_VERTICES ) {
+#endif // LOAD_ONLY_OBJECT
 #ifdef MODIFY_SQUARE_SECTOR
 		m_square_min.SetX( rcMin( x, m_square_min.X() ) );
 		m_square_min.SetZ( rcMin( z, m_square_min.Z() ) );

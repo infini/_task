@@ -123,6 +123,24 @@ const dtCoordinates* Sample::getBoundsMax()
 
 void Sample::resetCommonSettings()
 {
+	///*
+	m_cellSize				= 0.01f;
+	m_cellHeight			= 0.01f;
+	m_agentHeight			= 0.4f;
+	m_agentRadius			= 0.0f;
+	m_agentMaxClimb			= 0.1f;
+	m_agentMaxSlope			= 70.0f;
+	m_regionMinSize			= 10.f;
+	m_regionMergeSize		= 20.f;
+	m_monotonePartitioning	= false;
+	m_edgeMaxLen			= 0.0f;
+	m_edgeMaxError			= 1.3f;
+	m_vertsPerPoly			= 4.0f;
+	m_detailSampleDist		= 20.f;
+	m_detailSampleMaxError	= 1.0f;
+	//*/
+
+	/*
 	m_cellSize				= 0.02f;
 	m_cellHeight			= 0.01f;
 	m_agentHeight			= 0.4f;
@@ -133,10 +151,11 @@ void Sample::resetCommonSettings()
 	m_regionMergeSize		= 10.0f;
 	m_monotonePartitioning	= false;
 	m_edgeMaxLen			= 0.0f;
-	m_edgeMaxError			= 1.5f;
+	m_edgeMaxError			= 1.3f;
 	m_vertsPerPoly			= 4.0f;
 	m_detailSampleDist		= 10.0f;
 	m_detailSampleMaxError	= 1.0f;
+	*/
 }
 
 void Sample::handleCommonSettings()
@@ -178,8 +197,8 @@ void Sample::handleCommonSettings()
 
 	imguiSeparator();
 	imguiLabel("Detail Mesh");
-	imguiSlider("Sample Distance", &m_detailSampleDist, 0.0f, 16.0f, 1.0f);
-	imguiSlider("Max Sample Error", &m_detailSampleMaxError, 0.0f, 16.0f, 1.0f);
+	imguiSlider("Sample Distance", &m_detailSampleDist, 0.0f, 30.0f, 1.0f);
+	imguiSlider("Max Sample Error", &m_detailSampleMaxError, 0.0f, 30.0f, 1.0f);
 	
 	imguiSeparator();
 }
@@ -280,7 +299,7 @@ void	Sample::rcGenerateJumpableMeshConnection( const rcPolyMesh& mesh, const flo
 	};
 
 	std::vector<MeshPosition>	tableMeshPosition;
-	tableMeshPosition.resize( mesh.npolys );
+	tableMeshPosition.reserve( mesh.npolys );
 
 	for( int nth = 0; nth < mesh.npolys; ++nth ) {
 		//////////////////////////////////////////////////////////////////////////
@@ -326,7 +345,8 @@ void	Sample::rcGenerateJumpableMeshConnection( const rcPolyMesh& mesh, const flo
 		meshPosition.pos.SetY( center.Y() * divide );
 		meshPosition.pos.SetZ( center.Z() * divide );
 		
-		tableMeshPosition.at( nth ) = meshPosition;
+		//tableMeshPosition.at( nth ) = meshPosition;
+		tableMeshPosition.push_back( meshPosition );
 		//////////////////////////////////////////////////////////////////////////
 	}
 
@@ -341,7 +361,7 @@ void	Sample::rcGenerateJumpableMeshConnection( const rcPolyMesh& mesh, const flo
 
 			//////////////////////////////////////////////////////////////////////////
 			// over height?
-			if( rcAbs( src.pos.Y() - dest.pos.Y() ) <= walkableClimb || walkableHeight < ( dest.pos.Y() - src.pos.Y() ) ) {
+			if( rcAbs( src.pos.Y() - dest.pos.Y() ) <= walkableClimb || ( src.pos.Y() < dest.pos.Y() && walkableHeight < rcAbs( dest.pos.Y() - src.pos.Y() ) ) ) {
 				continue;
 			}
 			//////////////////////////////////////////////////////////////////////////

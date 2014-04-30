@@ -146,7 +146,10 @@ static void drawMeshTile(duDebugDraw* dd, const dtNavMesh& mesh, const dtNavMesh
 			}
 			else
 			{
-				if( rcCanMovableArea( p->getArea() ) ) {
+				if( ( p->getArea() & RC_UNDER_FLOOR_AREA ) == RC_UNDER_FLOOR_AREA ) {
+					col = duRGBA(255,0,0,64);
+				}
+				else if( rcCanMovableArea( p->getArea() ) ) {
 					col = duRGBA(0,192,255,64);
 				}
 				else {

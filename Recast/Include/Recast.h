@@ -27,11 +27,14 @@
 #define	MODIFY_OFF_MESH_CONNECTION
 #define	MODIFY_BV_TREE
 #define	MODIFY_SQUARE_SECTOR
+//#define	MODIFY_VOXEL_LEVEL
 #define	VARIABLE_TILE_SIZE
 #define	DIVISION_BUILD
-//#define	INTEGRATION_BUILD
+//#define	DIVISION_TERRAIN_OBJECT
 //#define	LOAD_ONLY_OBJECT
 //#define	LOAD_ONLY_TERRAIN
+
+//#define	INTEGRATION_BUILD
 //////////////////////////////////////////////////////////////////////////
 
 /// The value of PI used by Recast.
@@ -289,6 +292,12 @@ struct rcSpan
 	unsigned int smin : 13;			///< The lower limit of the span. [Limit: < #smax]
 	unsigned int smax : 13;			///< The upper limit of the span. [Limit: <= #RC_SPAN_MAX_HEIGHT]
 	unsigned int area : 6;			///< The area id assigned to the span.
+	//////////////////////////////////////////////////////////////////////////
+// #ifdef MODIFY_VOXEL_LEVEL
+	unsigned int level;
+	rcSpan() : smin( 0 ), smax( 0 ), area( 0 ), level( 0 )	{}
+// #endif // MODIFY_VOXEL_LEVEL
+	//////////////////////////////////////////////////////////////////////////
 	rcSpan* next;					///< The next span higher up in column.
 };
 
@@ -329,6 +338,10 @@ struct rcCompactSpan
 	unsigned short reg;			///< The id of the region the span belongs to. (Or zero if not in a region.)
 	unsigned int con : 24;		///< Packed neighbor connection data.
 	unsigned int h : 8;			///< The height of the span.  (Measured from #y.)
+// #ifdef MODIFY_VOXEL_LEVEL
+	unsigned int level;
+	rcCompactSpan() : y( 0 ), reg( 0 ), con( 0 ), h( 0 ), level( 0 )	{}
+// #endif // MODIFY_VOXEL_LEVEL
 };
 
 /// A compact, static heightfield representing unobstructed space.
@@ -392,6 +405,12 @@ struct rcContour
 	int nrverts;		///< The number of vertices in the raw contour. 
 	unsigned short reg;	///< The region id of the contour.
 	unsigned char area;	///< The area id of the contour.
+	//////////////////////////////////////////////////////////////////////////
+// #ifdef MODIFY_VOXEL_LEVEL
+	unsigned int level;
+	rcContour() : verts( 0 ), nverts( 0 ), rverts( 0 ), nrverts( 0 ), reg( 0 ), area( 0 ), level( 0 )	{}
+// #endif // MODIFY_VOXEL_LEVEL
+	//////////////////////////////////////////////////////////////////////////
 };
 
 /// Represents a group of related contours.
@@ -1142,6 +1161,11 @@ inline bool	rcIsObjectArea( const unsigned int area )
 
 inline bool rcIsWalkableArea( const unsigned int area )
 {
+	return /*(area & RC_CLIMBABLE_AREA) == RC_CLIMBABLE_AREA || */(area & RC_WALKABLE_AREA) == RC_WALKABLE_AREA;
+}
+
+inline bool rcIsClimbableArea( const unsigned int area )
+{
 	return (area & RC_CLIMBABLE_AREA) == RC_CLIMBABLE_AREA || (area & RC_WALKABLE_AREA) == RC_WALKABLE_AREA;
 }
 
@@ -1162,7 +1186,12 @@ inline bool	rcIsWalkableObjectArea( const unsigned int area )
 
 inline bool rcIsSimilarTypeArea( const unsigned int lhs_area, const unsigned int rhs_area )
 {
-	return (rcIsTerrainArea( lhs_area ) && rcIsTerrainArea( rhs_area )) || (rcIsObjectArea(lhs_area) && rcIsObjectArea(rhs_area));
+	return ( lhs_area == rhs_area ) || (rcIsTerrainArea( lhs_area ) && rcIsTerrainArea( rhs_area )) || (rcIsObjectArea(lhs_area) && rcIsObjectArea(rhs_area));
+}
+
+inline bool rcIsSimilarLevelArea( const unsigned int lhs_level, const unsigned int rhs_level )
+{
+	return rcAbs( static_cast<int>( lhs_level ) - static_cast<int>( rhs_level ) ) <= 2;
 }
 
 unsigned short	rcGetMeshFlag( const unsigned int area );
@@ -1272,7 +1301,12 @@ void	rcModifySpans( rcContext* ctx, const int walkableHeight, const int walkable
 
 
 void	rcFilterAlignmentSpans( rcContext* ctx, rcHeightfield& solid );
+void	rcMergeSpans( rcContext* ctx, rcHeightfield& solid );
+
+void	rcMarkLevelSpans( rcContext* ctx, rcHeightfield& solid );
+
 void	rcFilterUnderFloorObjectSpans( rcContext* ctx, rcHeightfield& solid );
+void	rcMarkWalkableRaisedSpotSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid );
 void	rcMarkTerrainWalkableUnderFloorSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid );
 void	rcFilterUnwalkableUnderFloorObjectInsideSpans( rcContext* ctx, rcHeightfield& solid );
 void	rcMarkTerrainUnderFloorObjectSpans( rcContext* ctx, const int walkableClimb, rcHeightfield& solid );
