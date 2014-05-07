@@ -406,9 +406,12 @@ struct rcContour
 	unsigned short reg;	///< The region id of the contour.
 	unsigned char area;	///< The area id of the contour.
 	//////////////////////////////////////////////////////////////////////////
+	unsigned int height;
+	//////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
 // #ifdef MODIFY_VOXEL_LEVEL
 	unsigned int level;
-	rcContour() : verts( 0 ), nverts( 0 ), rverts( 0 ), nrverts( 0 ), reg( 0 ), area( 0 ), level( 0 )	{}
+	rcContour() : verts( 0 ), nverts( 0 ), rverts( 0 ), nrverts( 0 ), reg( 0 ), area( 0 ), height( 0 ), level( 0 )	{}
 // #endif // MODIFY_VOXEL_LEVEL
 	//////////////////////////////////////////////////////////////////////////
 };
@@ -437,6 +440,7 @@ struct rcPolyMesh
 	unsigned short* regs;	///< The region id assigned to each polygon. [Length: #maxpolys]
 	unsigned short* flags;	///< The user defined flags for each polygon. [Length: #maxpolys]
 	unsigned char* areas;	///< The area id assigned to each polygon. [Length: #maxpolys]
+	float* heights;
 	int nverts;				///< The number of vertices.
 	int npolys;				///< The number of polygons.
 	int maxpolys;			///< The number of allocated polygons.

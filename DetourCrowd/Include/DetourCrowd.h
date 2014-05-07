@@ -116,11 +116,14 @@ enum MoveRequestState
 /// @ingroup crowd
 struct dtCrowdAgent
 {
-	/// 1 if the agent is active, or 0 if the agent is in an unused slot in the agent pool.
-	unsigned char active;
+	/// True if the agent is active, false if the agent is in an unused slot in the agent pool.
+	bool active;
 
 	/// The type of mesh polygon the agent is traversing. (See: #CrowdAgentState)
 	unsigned char state;
+
+	/// True if the agent has valid path (targetState == DT_CROWDAGENT_TARGET_VALID) and the path does not lead to the requested position, else false.
+	bool partial;
 
 	/// The path corridor the agent is using.
 	dtPathCorridor corridor;
@@ -171,7 +174,7 @@ struct dtCrowdAgent
 
 struct dtCrowdAgentAnimation
 {
-	unsigned char active;
+	bool active;
 	dtCoordinates initPos, startPos, endPos;
 	dtPolyRef polyRef;
 	float t, tmax;

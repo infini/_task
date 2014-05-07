@@ -108,7 +108,7 @@ static void walkContour(int x, int y, int i,
 						rcCompactHeightfield& chf,
 						unsigned char* flags, rcIntArray& points
 #ifdef MODIFY_VOXEL_FLAG
-						, unsigned char& o_area
+						, unsigned char& o_area, unsigned int& o_height
 #endif // MODIFY_VOXEL_FLAG
 						)
 {
@@ -121,6 +121,10 @@ static void walkContour(int x, int y, int i,
 	const int starti = i;
 	
 	const unsigned char area = chf.areas[i];
+
+#ifdef MODIFY_VOXEL_FLAG
+	o_height = 0;
+#endif // MODIFY_VOXEL_FLAG
 	
 	int iter = 0;
 	while (++iter < 40000)
@@ -167,6 +171,8 @@ static void walkContour(int x, int y, int i,
 			flags[i] &= ~(1 << dir); // Remove visited edges
 			dir = (dir+1) & 0x3;  // Rotate CW
 			o_area |= chf.areas[i];
+			const unsigned int height = chf.spans[i].h == 0xff ? chf.spans[i].y : chf.spans[i].y + chf.spans[i].h;
+			o_height = rcMax( o_height, height );
 		}
 		else
 		{
@@ -716,12 +722,13 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 					continue;
 				}
 				unsigned char area( chf.areas[i] );
+				unsigned int height( 0 );
 				
 				verts.resize(0);
 				simplified.resize(0);
 
 				ctx->startTimer(RC_TIMER_BUILD_CONTOURS_TRACE);
-				walkContour(x, y, i, chf, flags, verts, area);
+				walkContour(x, y, i, chf, flags, verts, area, height);
 				ctx->stopTimer(RC_TIMER_BUILD_CONTOURS_TRACE);
 
 				ctx->startTimer(RC_TIMER_BUILD_CONTOURS_SIMPLIFY);
@@ -809,6 +816,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 					cont->reg = reg;
 #ifdef MODIFY_VOXEL_FLAG
 					cont->area = area;
+					cont->height = height;
 #else // MODIFY_VOXEL_FLAG
 					cont->area = area;
 #endif // MODIFY_VOXEL_FLAG

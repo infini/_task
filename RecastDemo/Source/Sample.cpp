@@ -291,11 +291,12 @@ void	Sample::rcGenerateJumpableMeshConnection( const rcPolyMesh& mesh, const flo
 	struct MeshPosition
 	{
 		int vertCount;
+		float height;
 		dtCoordinates pos;
 		dtCoordinates bmin;
 		dtCoordinates bmax;
 		dtCoordinates verts[DT_VERTS_PER_POLYGON];
-		MeshPosition() : vertCount( 0 ) {}
+		MeshPosition() : vertCount( 0 ), height( 0 ) {}
 	};
 
 	std::vector<MeshPosition>	tableMeshPosition;
@@ -311,6 +312,10 @@ void	Sample::rcGenerateJumpableMeshConnection( const rcPolyMesh& mesh, const flo
 			}
 			++meshPosition.vertCount;
 		}
+		//////////////////////////////////////////////////////////////////////////
+
+		//////////////////////////////////////////////////////////////////////////
+		meshPosition.height = mesh.heights[nth];
 		//////////////////////////////////////////////////////////////////////////
 
 		//////////////////////////////////////////////////////////////////////////
@@ -363,6 +368,21 @@ void	Sample::rcGenerateJumpableMeshConnection( const rcPolyMesh& mesh, const flo
 			// over height?
 			if( rcAbs( src.pos.Y() - dest.pos.Y() ) <= walkableClimb || ( src.pos.Y() < dest.pos.Y() && walkableHeight < rcAbs( dest.pos.Y() - src.pos.Y() ) ) ) {
 				continue;
+			}
+			//////////////////////////////////////////////////////////////////////////
+			//////////////////////////////////////////////////////////////////////////
+			if( ( mesh.flags[nth] & RC_MESH_FLAG_UNDER_FLOOR ) == RC_MESH_FLAG_UNDER_FLOOR && ( mesh.flags[i] & RC_MESH_FLAG_UNDER_FLOOR ) == RC_MESH_FLAG_UNDER_FLOOR ) {
+				if( dest.pos.Y() < src.pos.Y() ) {
+					if( src.pos.Y() < dest.height && dest.height < src.height ) {
+						continue;
+					}
+					if( rcAbs( src.pos.Y() - dest.height ) <= walkableClimb ) {
+						continue;
+					}
+					if( dest.height < src.pos.Y() ) {
+						continue;
+					}
+				}
 			}
 			//////////////////////////////////////////////////////////////////////////
 			//////////////////////////////////////////////////////////////////////////

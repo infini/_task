@@ -970,6 +970,13 @@ bool rcBuildPolyMesh(rcContext* ctx, rcContourSet& cset, const int nvp, rcPolyMe
 		ctx->log(RC_LOG_ERROR, "rcBuildPolyMesh: Out of memory 'mesh.areas' (%d).", maxTris);
 		return false;
 	}
+
+	mesh.heights = (float*)rcAlloc(sizeof(float)*maxTris, RC_ALLOC_PERM);
+	if (!mesh.heights)
+	{
+		ctx->log(RC_LOG_ERROR, "rcBuildPolyMesh: Out of memory 'mesh.heights' (%d).", maxTris);
+		return false;
+	}
 	
 	mesh.nverts = 0;
 	mesh.npolys = 0;
@@ -980,6 +987,7 @@ bool rcBuildPolyMesh(rcContext* ctx, rcContourSet& cset, const int nvp, rcPolyMe
 	memset(mesh.polys, 0xff, sizeof(unsigned short)*maxTris*nvp*2);
 	memset(mesh.regs, 0, sizeof(unsigned short)*maxTris);
 	memset(mesh.areas, 0, sizeof(unsigned char)*maxTris);
+	memset(mesh.heights, 0, sizeof(float) * maxTris );
 	
 	rcScopedDelete<int> nextVert = (int*)rcAlloc(sizeof(int)*maxVertices, RC_ALLOC_TEMP);
 	if (!nextVert)
@@ -1135,6 +1143,7 @@ bool rcBuildPolyMesh(rcContext* ctx, rcContourSet& cset, const int nvp, rcPolyMe
 			mesh.regs[mesh.npolys] = cont.reg;
 #ifdef MODIFY_VOXEL_FLAG
 			mesh.areas[mesh.npolys] = cont.area;
+			mesh.heights[mesh.npolys] = static_cast<float>( cont.height ) * mesh.ch + mesh.bmin.Y();
 #else // MODIFY_VOXEL_FLAG
 			mesh.areas[mesh.npolys] = cont.area;
 #endif // MODIFY_VOXEL_FLAG

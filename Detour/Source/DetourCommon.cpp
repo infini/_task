@@ -465,7 +465,8 @@ bool	_dtIntersectSegmentPoly2D( const dtCoordinates& p0, const dtCoordinates& p1
 		}
 	}
 
-	const float t0 = 0.002f < tmax ? tmax - 0.002f : 0.0f;
+	const float f = 0.01f;
+	const float t0 = f < tmax ? tmax - f : 0.0f;
 	dtVlerp( resultPosition, p0, p1, t0 );
 	return true;
 }

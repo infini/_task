@@ -3518,10 +3518,12 @@ dtPolyRef	dtNavMeshQuery::queryCorrectPolygonsInTile2D( const dtMeshTile* tile, 
 	unsigned short bmin[3], bmax[3];
 	// dtClamp query box to world box.
 	float minx = dtClamp(pos.X(), tbmin.X(), tbmax.X()) - tbmin.X();
-	float miny = dtClamp(pos.Y() - tile->header->walkableClimb, tbmin.Y(), tbmax.Y()) - tbmin.Y();
+	//float miny = dtClamp(pos.Y() - tile->header->walkableClimb, tbmin.Y(), tbmax.Y()) - tbmin.Y();
+	float miny = 0;
 	float minz = dtClamp(pos.Z(), tbmin.Z(), tbmax.Z()) - tbmin.Z();
 	float maxx = dtClamp(pos.X(), tbmin.X(), tbmax.X()) - tbmin.X();
-	float maxy = dtClamp(pos.Y() + tile->header->walkableClimb, tbmin.Y(), tbmax.Y()) - tbmin.Y();
+	//float maxy = dtClamp(pos.Y() + tile->header->walkableClimb, tbmin.Y(), tbmax.Y()) - tbmin.Y();
+	float maxy = ground ? ( tbmax.Y() - tbmin.Y() ) : dtClamp(pos.Y() + tile->header->walkableClimb, tbmin.Y(), tbmax.Y()) - tbmin.Y();
 	float maxz = dtClamp(pos.Z(), tbmin.Z(), tbmax.Z()) - tbmin.Z();
 	// Quantize
 	bmin[0] = (unsigned short)(qfac * minx) & 0xfffe;
@@ -3534,7 +3536,7 @@ dtPolyRef	dtNavMeshQuery::queryCorrectPolygonsInTile2D( const dtMeshTile* tile, 
 	// Traverse tree
 	const dtPolyRef base = m_nav->getPolyRefBase(tile);
 	while( node < end ) {
-		const bool overlap = dtOverlapQuantBounds2D(bmin, bmax, node->bmin, node->bmax);
+		const bool overlap = dtOverlapQuantBounds(bmin, bmax, node->bmin, node->bmax);
 		const bool isLeafNode = node->i >= 0;
 
 		if( isLeafNode && overlap ) {
@@ -3548,7 +3550,7 @@ dtPolyRef	dtNavMeshQuery::queryCorrectPolygonsInTile2D( const dtMeshTile* tile, 
 				dtVcopy( verts[nth], _tile->verts[_poly->verts[nth]] );
 			}
 			if( dtPointInPolygon( pos, verts, vertCount ) ) {
-				const bool compare = ground ? node->bmin[1] < compareHeight : compareHeight < bmax[1];
+				const bool compare = ground ? node->bmin[1] < compareHeight : compareHeight < node->bmin[1];
 				if( compare ) {
 						compareHeight = node->bmin[1];
 						navigationMeshID = pid;
@@ -3833,10 +3835,11 @@ dtStatus	dtNavMeshQuery::findMovablePosition( const dtPolyRef startPolyID, const
 
 				if( dtPointInPolygon( endPosition, next_verts, next_vertCount ) ) {
 					float height = 0;
-					getCorrectPolyHeight( jumpMeshLink->ref, endPosition, height );
+					if( dtStatusSucceed( getCorrectPolyHeight( jumpMeshLink->ref, endPosition, height ) ) ) {
 					if( height <= endPosition.Y() ) {
 						nextPolyID = jumpMeshLink->ref;
 						break;
+						}
 					}
 				}
 			}
